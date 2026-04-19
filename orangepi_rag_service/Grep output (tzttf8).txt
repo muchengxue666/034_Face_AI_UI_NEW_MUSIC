@@ -1,0 +1,3 @@
+348:    char asr_auth[160];
+349:    snprintf(asr_auth, sizeof(asr_auth), "Bearer; %s", ASR_ACCESS_TOKEN);
+350:    esp_http_client_set_header(client, "Authorization", asr_auth);

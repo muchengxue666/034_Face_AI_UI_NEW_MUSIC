@@ -1,0 +1,28 @@
+{
+	"folders": [
+		{
+			"path": ".."
+		},
+		{
+			"path": "../../01_lvgl_official_transplant (1)"
+		},
+		{
+			"path": "../../23_music"
+		},
+		{
+			"path": "../../24_recoding"
+		},
+		{
+			"path": "../../17_mipicamera"
+		}
+	],
+	"settings": {
+		"files.associations": {
+			"freertos.h": "c",
+			"esp_log.h": "c",
+			"stdio.h": "c",
+			"led.h": "c",
+			"key.h": "c"
+		}
+	}
+}

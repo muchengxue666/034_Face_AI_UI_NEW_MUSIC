@@ -1,0 +1,30 @@
+{
+	"folders": [
+		{
+			"path": "C:/Users/11966/Downloads/01_lvgl_official_transplant (1)/01_lvgl_official_transplant"
+		},
+		{
+			"path": "../../.."
+		}
+	],
+	"settings": {
+		"files.associations": {
+			"freertos.h": "c",
+			"esp_log.h": "c",
+			"cstdint": "c",
+			"myiic.h": "c",
+			"gpio.h": "c",
+			"stdio.h": "c",
+			"i2c_master.h": "c",
+			"lcd.h": "c",
+			"array": "c",
+			"string": "c",
+			"string_view": "c",
+			"span": "c",
+			"touch.h": "c",
+			"random": "c",
+			"gt9xxx.h": "c",
+			"mipi_lcd.h": "c"
+		}
+	}
+}
