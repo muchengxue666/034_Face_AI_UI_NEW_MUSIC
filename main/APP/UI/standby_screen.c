@@ -263,6 +263,19 @@ void delete_standby_screen(void)
 }
 
 /**
+ * @brief       停止呼吸动画
+ * @param       无
+ * @retval      无
+ */
+void stop_breathing_animations(void)
+{
+    lv_anim_del(s_halo_outer, breathing_outer_cb);
+    lv_anim_del(s_halo_middle, breathing_middle_cb);
+    lv_anim_del(s_halo_inner, breathing_inner_cb);
+    lv_anim_del(s_icon_center, icon_pulse_cb);
+}
+
+/**
  * @brief       重新启动呼吸动画
  * @param       无
  * @retval      无
@@ -270,10 +283,7 @@ void delete_standby_screen(void)
 void restart_breathing_animations(void)
 {
     /* 停止现有动画 */
-    lv_anim_del(s_halo_outer, breathing_outer_cb);
-    lv_anim_del(s_halo_middle, breathing_middle_cb);
-    lv_anim_del(s_halo_inner, breathing_inner_cb);
-    lv_anim_del(s_icon_center, icon_pulse_cb);
+    stop_breathing_animations();
     
     /* 重新启动呼吸动画 */
     start_breathing_animations();

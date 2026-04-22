@@ -21,6 +21,7 @@ extern "C" {
 
 lv_obj_t *create_music_screen(void);
 void      delete_music_screen(void);
+void      music_screen_set_active(bool active);
 bool      music_screen_is_playing(void);
 void      music_screen_pause_playback(const char *reason);
 void      music_screen_interrupt_playback(const char *reason);
