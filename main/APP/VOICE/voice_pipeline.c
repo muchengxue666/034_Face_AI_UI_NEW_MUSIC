@@ -31,6 +31,7 @@
 #include "myi2s.h"
 #include "myes8311.h"
 #include "inmp441.h"
+#include "orangepi_memory_client.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/semphr.h"
@@ -50,15 +51,6 @@ static const char *TAG = "VOICE";
 /* ==================== 火山引擎 API 配置 ==================== */
 #define VOLCENGINE_API_KEY      "89c5ffe9-8cba-466a-9007-f9ebc4817b7f"
 #define DOUBAO_ENDPOINT         "ep-20260310180907-frhfb"
-
-/* ==================== 香橙派 RAG 服务配置 ==================== */
-/* 修改为香橙派 AIPro 的局域网 IP 地址 */
-#define RAG_SERVICE_IP          "192.168.43.26"
-#define RAG_SERVICE_PORT        8765
-#define RAG_URL                 "http://" RAG_SERVICE_IP ":" "8765" "/query"
-#define RAG_HEALTH_URL          "http://" RAG_SERVICE_IP ":" "8765" "/health"
-#define RAG_TIMEOUT_MS          3000    /* RAG 查询超时：3秒，超时则退化为无记忆模式 */
-#define RAG_CONTEXT_MAX         800     /* 注入 system prompt 的最大记忆字符数 */
 
 /* 火山引擎 ASR（语音识别）HTTP接口 */
 #define ASR_V1_URL              "https://openspeech.bytedance.com/api/v1/asr"
@@ -119,13 +111,10 @@ static uint8_t *s_http_buf    = NULL;
 static uint32_t s_http_len    = 0;
 static bool s_http_overflow   = false;
 
-/* RAG 专用接收缓冲（与 STT/TTS 分开，避免互相覆盖）*/
-#define RAG_RECV_BUF_SIZE       (4 * 1024)
-static uint8_t *s_rag_buf     = NULL;
-static uint32_t s_rag_len     = 0;
-
-/* RAG 服务是否可用（启动时探测，运行时动态更新）*/
-static volatile bool s_rag_available = false;
+static const char *DEFAULT_COMPANION_PROMPT =
+    "你是陪伴老人的温暖智能助手小柚子。"
+    "请用简洁、亲切、口语化的中文回答，不超过60字，不使用Markdown。"
+    "如果问题涉及家庭事实但你没有把握，就直接说明暂时不知道，并建议联系家属确认。";
 
 /* ==================== 工具函数 ==================== */
 
@@ -424,125 +413,6 @@ static esp_err_t http_event_collect(esp_http_client_event_t *evt)
     return ESP_OK;
 }
 
-/* RAG 专用回调，写入独立缓冲，不干扰 STT/TTS */
-static esp_err_t http_event_collect_rag(esp_http_client_event_t *evt)
-{
-    if (evt->event_id == HTTP_EVENT_ON_DATA) {
-        if (s_rag_buf && (s_rag_len + evt->data_len < RAG_RECV_BUF_SIZE - 1)) {
-            memcpy(s_rag_buf + s_rag_len, evt->data, evt->data_len);
-            s_rag_len += evt->data_len;
-        }
-    }
-    return ESP_OK;
-}
-
-/* ==================== RAG 模块 ==================== */
-
-/**
- * @brief 探测香橙派 RAG 服务是否可达
- * @return true=可用
- */
-static bool rag_health_check(void)
-{
-    esp_http_client_config_t cfg = {
-        .url         = RAG_HEALTH_URL,
-        .timeout_ms  = RAG_TIMEOUT_MS,
-        .event_handler = http_event_collect_rag,
-    };
-    esp_http_client_handle_t client = esp_http_client_init(&cfg);
-    esp_http_client_set_method(client, HTTP_METHOD_GET);
-
-    s_rag_len = 0;
-    if (s_rag_buf) memset(s_rag_buf, 0, RAG_RECV_BUF_SIZE);
-
-    esp_err_t err = esp_http_client_perform(client);
-    int status = esp_http_client_get_status_code(client);
-    esp_http_client_cleanup(client);
-
-    bool ok = (err == ESP_OK && status == 200);
-    ESP_LOGI(TAG, "RAG health check: %s (http=%d)", ok ? "OK" : "FAIL", status);
-    return ok;
-}
-
-/**
- * @brief 查询香橙派 RAG 服务，获取与问题相关的家庭记忆片段
- * @param question   用户问题（STT 识别文本）
- * @param out_ctx    输出记忆上下文缓冲
- * @param out_size   缓冲大小
- * @return true=查询成功且有相关记忆，false=查询失败或无相关记忆
- */
-static bool rag_query(const char *question, char *out_ctx, size_t out_size)
-{
-    if (!s_rag_available || !question || question[0] == '\0') return false;
-
-    s_rag_len = 0;
-    if (s_rag_buf) memset(s_rag_buf, 0, RAG_RECV_BUF_SIZE);
-
-    /* 构建请求体：{"question": "...", "top_k": 3} */
-    char post_body[512];
-    /* 对 question 中的双引号转义，防止 JSON 注入 */
-    char safe_q[256];
-    size_t qi = 0, si = 0;
-    while (question[qi] && si < sizeof(safe_q) - 2) {
-        if (question[qi] == '"' || question[qi] == '\\') safe_q[si++] = '\\';
-        safe_q[si++] = question[qi++];
-    }
-    safe_q[si] = '\0';
-
-    snprintf(post_body, sizeof(post_body),
-             "{\"question\":\"%s\",\"top_k\":3}", safe_q);
-
-    esp_http_client_config_t cfg = {
-        .url           = RAG_URL,
-        .timeout_ms    = RAG_TIMEOUT_MS,
-        .event_handler = http_event_collect_rag,
-        .buffer_size   = 2048,
-    };
-    esp_http_client_handle_t client = esp_http_client_init(&cfg);
-    esp_http_client_set_method(client, HTTP_METHOD_POST);
-    esp_http_client_set_header(client, "Content-Type", "application/json");
-    esp_http_client_set_post_field(client, post_body, strlen(post_body));
-
-    esp_err_t err = esp_http_client_perform(client);
-    int status    = esp_http_client_get_status_code(client);
-    esp_http_client_cleanup(client);
-
-    if (err != ESP_OK || status != 200 || s_rag_len == 0) {
-        /* 网络抖动或服务重启，标记不可用，下次触发再重试 health check */
-        ESP_LOGW(TAG, "RAG query failed (err=%s, http=%d), disabling", esp_err_to_name(err), status);
-        s_rag_available = false;
-        return false;
-    }
-
-    s_rag_buf[s_rag_len] = '\0';
-
-    /* 解析响应：{"context": "...", "sources": [...], "elapsed_ms": 42} */
-    cJSON *root = cJSON_Parse((char *)s_rag_buf);
-    if (!root) {
-        ESP_LOGE(TAG, "RAG: JSON parse failed");
-        return false;
-    }
-
-    bool success = false;
-    cJSON *ctx_obj = cJSON_GetObjectItem(root, "context");
-    if (ctx_obj && cJSON_IsString(ctx_obj) && ctx_obj->valuestring[0] != '\0') {
-        strncpy(out_ctx, ctx_obj->valuestring, out_size - 1);
-        out_ctx[out_size - 1] = '\0';
-
-        cJSON *elapsed = cJSON_GetObjectItem(root, "elapsed_ms");
-        ESP_LOGI(TAG, "RAG: got %zu chars of context in %dms",
-                 strlen(out_ctx),
-                 elapsed ? elapsed->valueint : -1);
-        success = true;
-    } else {
-        /* context 为空字符串：问题与记忆无关，正常情况 */
-        ESP_LOGI(TAG, "RAG: no relevant memory for this question");
-    }
-
-    cJSON_Delete(root);
-    return success;
-}
-
 /* ==================== STT 模块 ==================== */
 
 /**
@@ -751,12 +621,12 @@ static bool stt_recognize(const uint8_t *pcm_data, uint32_t pcm_len,
 /**
  * @brief 调用豆包大模型，返回回复文本
  * @param user_text      用户输入文本（STT识别结果）
- * @param memory_context 家庭记忆上下文（RAG检索结果，可为NULL表示无记忆）
+ * @param system_prompt_text 香橙派编排后的 system prompt，可为 NULL 表示使用默认陪伴提示词
  * @param out_reply      输出回复缓冲
  * @param out_size       输出缓冲大小
  * @return true=成功
  */
-static bool llm_chat(const char *user_text, const char *memory_context,
+static bool llm_chat(const char *user_text, const char *system_prompt_text,
                      char *out_reply, size_t out_size)
 {
     if (!user_text || user_text[0] == '\0') return false;
@@ -767,65 +637,42 @@ static bool llm_chat(const char *user_text, const char *memory_context,
     s_http_overflow = false;
     if (s_http_buf) s_http_buf[0] = '\0';  /* 不需要清零整个 512KB */
 
-    /*
-     * system prompt 构成：
-     *   固定角色描述
-     *   + 家庭记忆片段（如果 RAG 有返回）
-     *
-     * 有记忆时：豆包能回答"我什么时候吃药""女儿叫什么名字"等具体问题
-     * 无记忆时：豆包作为通用陪伴助手回答
-     */
-    const char *base_prompt =
-        "你是陪伴老人的温暖智能助手小柚子。"
-        "请用简洁、亲切、口语化的语言回答，不超过60字，不使用Markdown格式。"
-        "如果问到家人或生活的具体情况，请根据提供的家庭记忆来回答。";
+    const char *effective_prompt =
+        (system_prompt_text && system_prompt_text[0] != '\0') ?
+        system_prompt_text : DEFAULT_COMPANION_PROMPT;
 
-    /* 动态拼接 system prompt */
-    char *system_prompt = malloc(2048);
-    if (!system_prompt) return false;
-
-    if (memory_context && memory_context[0] != '\0') {
-        /* 有记忆：把记忆片段截断到 RAG_CONTEXT_MAX 字符，拼入 prompt */
-        char trimmed_ctx[RAG_CONTEXT_MAX + 1];
-        strncpy(trimmed_ctx, memory_context, RAG_CONTEXT_MAX);
-        trimmed_ctx[RAG_CONTEXT_MAX] = '\0';
-        snprintf(system_prompt, 2048, "%s\n\n%s", base_prompt, trimmed_ctx);
-    } else {
-        /* 无记忆：使用基础 prompt */
-        strncpy(system_prompt, base_prompt, 2047);
-        system_prompt[2047] = '\0';
+    cJSON *root = cJSON_CreateObject();
+    if (!root) {
+        return false;
     }
-
-    /* 对 system_prompt 和 user_text 中的特殊字符转义，确保 JSON 合法 */
-    /* 简单处理：将双引号替换为中文引号，避免 JSON 破坏 */
-    for (char *p = system_prompt; *p; p++) {
-        if (*p == '"') *p = '\x27';  /* 替换为单引号 */
+    cJSON *messages = cJSON_AddArrayToObject(root, "messages");
+    if (!messages) {
+        cJSON_Delete(root);
+        return false;
     }
+    cJSON_AddStringToObject(root, "model", DOUBAO_ENDPOINT);
 
-    char *post_data = malloc(4096);
-    if (!post_data) {
-        free(system_prompt);
+    cJSON *system_msg = cJSON_CreateObject();
+    cJSON *user_msg = cJSON_CreateObject();
+    if (!system_msg || !user_msg) {
+        cJSON_Delete(system_msg);
+        cJSON_Delete(user_msg);
+        cJSON_Delete(root);
         return false;
     }
 
-    /* user_text 的双引号处理 */
-    char safe_user[300];
-    size_t ui = 0, si = 0;
-    while (user_text[ui] && si < sizeof(safe_user) - 2) {
-        if (user_text[ui] == '"' || user_text[ui] == '\\') safe_user[si++] = '\\';
-        safe_user[si++] = user_text[ui++];
+    cJSON_AddStringToObject(system_msg, "role", "system");
+    cJSON_AddStringToObject(system_msg, "content", effective_prompt);
+    cJSON_AddStringToObject(user_msg, "role", "user");
+    cJSON_AddStringToObject(user_msg, "content", user_text);
+    cJSON_AddItemToArray(messages, system_msg);
+    cJSON_AddItemToArray(messages, user_msg);
+
+    char *post_data = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root);
+    if (!post_data) {
+        return false;
     }
-    safe_user[si] = '\0';
-
-    snprintf(post_data, 4096,
-        "{\"model\":\"%s\","
-        "\"messages\":["
-        "{\"role\":\"system\",\"content\":\"%s\"},"
-        "{\"role\":\"user\",\"content\":\"%s\"}"
-        "]}",
-        DOUBAO_ENDPOINT, system_prompt, safe_user);
-
-    free(system_prompt);
 
     esp_http_client_config_t cfg = {
         .url            = "https://ark.cn-beijing.volces.com/api/v3/chat/completions",
@@ -860,14 +707,14 @@ static bool llm_chat(const char *user_text, const char *memory_context,
     }
 
     /* 解析豆包响应：{"choices":[{"message":{"content":"..."}}]} */
-    cJSON *root = cJSON_Parse((char*)s_http_buf);
-    if (!root) {
+    cJSON *reply_root = cJSON_Parse((char*)s_http_buf);
+    if (!reply_root) {
         ESP_LOGE(TAG, "LLM: JSON parse failed");
         return false;
     }
 
     bool success = false;
-    cJSON *choices = cJSON_GetObjectItem(root, "choices");
+    cJSON *choices = cJSON_GetObjectItem(reply_root, "choices");
     if (choices && cJSON_IsArray(choices)) {
         cJSON *choice0 = cJSON_GetArrayItem(choices, 0);
         if (choice0) {
@@ -884,7 +731,7 @@ static bool llm_chat(const char *user_text, const char *memory_context,
         }
     }
 
-    cJSON_Delete(root);
+    cJSON_Delete(reply_root);
     return success;
 }
 
@@ -1195,19 +1042,14 @@ static uint32_t record_audio(void)
 
 static void voice_pipeline_task(void *arg)
 {
+    orangepi_memory_client_init();
+
     /* 分配 HTTP 接收缓冲（放到 PSRAM）*/
     s_http_buf = heap_caps_malloc(HTTP_RECV_BUF_SIZE, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
     if (!s_http_buf) {
         ESP_LOGE(TAG, "Failed to allocate HTTP recv buffer");
         vTaskDelete(NULL);
         return;
-    }
-
-    /* 分配 RAG 接收缓冲（独立，放到 PSRAM）*/
-    s_rag_buf = heap_caps_malloc(RAG_RECV_BUF_SIZE, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-    if (!s_rag_buf) {
-        ESP_LOGW(TAG, "Failed to allocate RAG buffer, RAG disabled");
-        /* 不致命，继续运行，只是没有记忆功能 */
     }
 
     /* 分配录音缓冲（放到 PSRAM）*/
@@ -1219,20 +1061,17 @@ static void voice_pipeline_task(void *arg)
         return;
     }
 
-    /* 探测香橙派 RAG 服务 */
-    if (s_rag_buf) {
-        ESP_LOGI(TAG, "Probing RAG service at %s:%d ...", RAG_SERVICE_IP, RAG_SERVICE_PORT);
-        s_rag_available = rag_health_check();
-        if (s_rag_available) {
-            ESP_LOGI(TAG, "RAG service available — 家庭记忆功能已启用");
-        } else {
-            ESP_LOGW(TAG, "RAG service unavailable — 将以无记忆模式运行（香橙派未启动？）");
-        }
+    /* 探测香橙派记忆中枢 */
+    ESP_LOGI(TAG, "Probing OrangePi memory service ...");
+    if (orangepi_memory_client_probe()) {
+        ESP_LOGI(TAG, "OrangePi memory service available — 家庭记忆编排已启用");
+    } else {
+        ESP_LOGW(TAG, "OrangePi memory service unavailable — 将以普通陪伴模式运行");
     }
 
-    char stt_text[256]              = {0};
-    char llm_reply[512]             = {0};
-    char memory_context[RAG_CONTEXT_MAX + 1] = {0};
+    char stt_text[256] = {0};
+    char llm_reply[512] = {0};
+    orangepi_compose_result_t compose_result = {0};
 
     while (1) {
         /* 等待唤醒信号 */
@@ -1292,30 +1131,32 @@ static void voice_pipeline_task(void *arg)
             continue;
         }
 
-        /* Step 3: RAG — 查询家庭记忆（可选，失败不阻断流程）
-         *
-         * 如果 RAG 之前标记不可用，每隔 5 次触发重试一次 health check，
-         * 这样香橙派重启后无需重启设备就能自动恢复。
-         */
-        memset(memory_context, 0, sizeof(memory_context));
-        if (!s_rag_available && s_rag_buf) {
+        /* Step 3: 香橙派记忆中枢 — 拉取编排好的 system prompt（可选，失败不阻断流程） */
+        memset(&compose_result, 0, sizeof(compose_result));
+        if (!orangepi_memory_client_is_available()) {
             static uint8_t rag_retry_count = 0;
             if (++rag_retry_count >= 5) {
                 rag_retry_count = 0;
-                ESP_LOGI(TAG, "Retrying RAG health check...");
-                s_rag_available = rag_health_check();
+                ESP_LOGI(TAG, "Retrying OrangePi memory service probe...");
+                orangepi_memory_client_probe();
             }
         }
-        bool has_memory = rag_query(stt_text, memory_context, sizeof(memory_context));
-        if (has_memory) {
-            ESP_LOGI(TAG, "RAG: injecting %zu chars of family memory into LLM prompt",
-                     strlen(memory_context));
+        bool prompt_ready = orangepi_memory_client_compose_prompt(stt_text, &compose_result);
+        if (prompt_ready) {
+            ESP_LOGI(TAG,
+                     "OrangePi prompt ready: trace=%s, has_memory=%s, degraded=%s, elapsed=%dms",
+                     compose_result.trace_id[0] ? compose_result.trace_id : "n/a",
+                     compose_result.has_memory ? "true" : "false",
+                     compose_result.degraded ? "true" : "false",
+                     compose_result.elapsed_ms);
+        } else {
+            ESP_LOGW(TAG, "OrangePi prompt unavailable, fallback to default assistant prompt");
         }
 
-        /* Step 4: LLM（带记忆上下文）*/
+        /* Step 4: LLM（使用香橙派返回的 system prompt 或本地默认提示词）*/
         memset(llm_reply, 0, sizeof(llm_reply));
         bool llm_ok = llm_chat(stt_text,
-                               has_memory ? memory_context : NULL,
+                               prompt_ready ? compose_result.system_prompt : NULL,
                                llm_reply, sizeof(llm_reply));
         if (!llm_ok || llm_reply[0] == '\0') {
             ESP_LOGW(TAG, "LLM failed");

@@ -7,6 +7,7 @@ idf_component_register(
         "APP/WIFI_APP"    # WiFi 模块文件夹
         "APP/DOUBAO_AI"   # 豆包大模型文件夹
         "APP/VOICE"       # 语音流水线文件夹
+        "APP/ORANGEPI"    # 香橙派记忆服务客户端
         "APP/UI"          # UI 文件夹
         "APP/AUDIO"       # 音频处理文件夹
     INCLUDE_DIRS
@@ -17,6 +18,7 @@ idf_component_register(
         "APP/WIFI_APP"
         "APP/DOUBAO_AI"
         "APP/VOICE"       # 语音流水线头文件路径
+        "APP/ORANGEPI"
         "APP/UI"
         "APP/AUDIO"
     REQUIRES

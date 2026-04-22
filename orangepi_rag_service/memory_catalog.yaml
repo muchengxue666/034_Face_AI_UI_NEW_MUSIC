@@ -1,0 +1,186 @@
+version: 1
+memories:
+  - id: profile_basic
+    category: profile
+    title: 基本信息
+    content: |-
+      姓名：李奶奶（家人都叫她奶奶）
+      年龄：78岁
+      住址：客厅主卧，房间在二楼左侧
+      性格：温和，喜欢聊天，有时候会忘事，不喜欢麻烦别人
+    keywords:
+      - 奶奶
+      - 姓名
+      - 年龄
+      - 性格
+    source: catalog
+    priority: 90
+    is_active: true
+  - id: family_members
+    category: family
+    title: 家庭成员
+    content: |-
+      大儿子：李建国，在北京工作，每月回来一次。
+      大儿媳：王芳，负责每周采购。
+      孙子：李小明，23岁，在上海读研究生，奶奶最牵挂他。
+      孙女：李晓雨，20岁，在本市上大学，每周末回家。
+      女儿：李美华，住在同一个城市，每天下班后会来看望。
+    keywords:
+      - 李建国
+      - 李美华
+      - 李小明
+      - 李晓雨
+      - 家人
+    source: catalog
+    priority: 95
+    is_active: true
+  - id: health_status
+    category: health
+    title: 健康状况
+    content: |-
+      高血压确诊10年；糖尿病轻度，需要控糖。
+      左膝关节炎，上下楼梯要扶扶手，不能久站。
+      右眼白内障较严重，看小字要戴眼镜，眼镜放在床头柜上。
+      心脏有轻微心律不齐，散步每次不超过30分钟。
+    keywords:
+      - 高血压
+      - 糖尿病
+      - 膝盖
+      - 白内障
+      - 心律不齐
+    source: catalog
+    priority: 100
+    is_active: true
+  - id: medication_schedule
+    category: medication
+    title: 用药记录
+    content: |-
+      早上7:00：硝苯地平缓释片1片，温水送服。
+      早上7:30：二甲双胍1片，随餐服用。
+      晚上7:00：阿司匹林肠溶片1片，饭后服用。
+      药放在厨房灶台旁边的小篮子里，红色盖子是降压药，白色盖子是降糖药。
+    keywords:
+      - 吃药
+      - 硝苯地平
+      - 二甲双胍
+      - 阿司匹林
+      - 药篮
+    source: catalog
+    priority: 100
+    is_active: true
+  - id: diet_preference
+    category: diet
+    title: 饮食习惯
+    content: |-
+      早餐喜欢小米粥配鸡蛋，偶尔吃馒头。
+      午餐清淡，最爱红烧豆腐和清炒时蔬。
+      晚餐少食七分饱，不喜欢油腻。
+      喜欢嗑瓜子但不能多吃；不能吃西柚，少吃腌制食品。
+    keywords:
+      - 早餐
+      - 小米粥
+      - 西柚
+      - 忌口
+      - 红烧豆腐
+    source: catalog
+    priority: 88
+    is_active: true
+  - id: routine_daily
+    category: routine
+    title: 作息时间
+    content: |-
+      早上6:30起床，7:00到7:30吃早饭。
+      中午12:00到14:00午睡，不要打扰。
+      下午喜欢看戏曲频道和新闻联播，也会下楼和张大妈聊天。
+      晚饭17:30到18:00，睡前泡脚15分钟，21:00左右就寝。
+    keywords:
+      - 起床
+      - 午睡
+      - 晚饭
+      - 泡脚
+      - 就寝
+    source: catalog
+    priority: 92
+    is_active: true
+  - id: preference_hobby
+    category: preference
+    title: 兴趣爱好
+    content: |-
+      最喜欢京剧，特别是《霸王别姬》和《锁麟囊》。
+      喜欢和邻居张大妈聊天。
+      以前会打麻将，现在因为眼睛不好打得少了。
+      喜欢养花，阳台上的月季和茉莉每两天浇一次水。
+    keywords:
+      - 京剧
+      - 张大妈
+      - 麻将
+      - 养花
+      - 月季
+    source: catalog
+    priority: 78
+    is_active: true
+  - id: event_recent
+    category: event
+    title: 近期状况
+    content: |-
+      2026年3月膝盖疼得厉害，医生建议减少爬楼，已联系换一楼房间。
+      2026年3月血压复查140/85，控制良好。
+      2026年2月感冒已痊愈，但要注意保暖。
+      2026年1月体检发现轻度贫血，建议多吃猪肝和菠菜。
+    keywords:
+      - 近期
+      - 血压复查
+      - 贫血
+      - 感冒
+      - 换房间
+    source: catalog
+    priority: 84
+    is_active: true
+  - id: important_dates
+    category: event
+    title: 重要日期
+    content: |-
+      生日：农历九月初九重阳节，今年公历10月28日。
+      结婚纪念日：每年4月15日，这天情绪会低落，需要多陪伴。
+      忌讳提起老伴去世的事情，会难过很久。
+    keywords:
+      - 生日
+      - 重阳节
+      - 纪念日
+      - 老伴
+    source: catalog
+    priority: 86
+    is_active: true
+  - id: emergency_contacts
+    category: contact
+    title: 紧急联系
+    content: |-
+      第一联系人：大儿子李建国，136xxxxxxxx。
+      第二联系人：女儿李美华，138xxxxxxxx。
+      家庭医生：社区卫生中心王医生，每周二上午出诊。
+      就近医院：人民医院，距离家约2公里，打车约10分钟。
+    keywords:
+      - 联系人
+      - 王医生
+      - 人民医院
+      - 电话
+    source: catalog
+    priority: 100
+    is_active: true
+  - id: safety_notice
+    category: safety
+    title: 特别提醒
+    content: |-
+      奶奶耳朵有点背，说话要稍微大声一点，但不要喊。
+      奶奶常说“我没事”，要多观察状态。
+      如果奶奶说头晕，要立刻让她坐下量血压；超过180/100要叫救护车。
+      奶奶最牵挂在上海的孙子小明，经常会问他有没有吃饭。
+    keywords:
+      - 头晕
+      - 量血压
+      - 救护车
+      - 观察
+      - 小明
+    source: catalog
+    priority: 100
+    is_active: true

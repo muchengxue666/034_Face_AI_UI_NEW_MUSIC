@@ -3,10 +3,12 @@
 #include <stddef.h>
 #include <string.h>
 #include <stdlib.h> 
+#include "esp_err.h"
 #include "esp_log.h"
 #include "mqtt_client.h"
 #include "cJSON.h"
 #include "doubao_ai.h" 
+#include "orangepi_memory_client.h"
 #include "voice_pipeline.h"
 #include "music_screen.h"
 #include "mqtt_app.h" // 确保包含了头文件
@@ -27,6 +29,11 @@ char global_elder_name[64] = {0};
 char global_elder_status[128] = {0};
 char global_family_msg[256] = {0};
 
+typedef struct {
+    char sender[64];
+    char message[256];
+} mqtt_memory_note_arg_t;
+
 static void mqtt_notification_chime_task(void *arg)
 {
     (void)arg;
@@ -34,6 +41,19 @@ static void mqtt_notification_chime_task(void *arg)
         music_screen_interrupt_playback("family_message");
     }
     voice_pipeline_play_notification_chime();
+    vTaskDelete(NULL);
+}
+
+static void mqtt_memory_sync_task(void *arg)
+{
+    mqtt_memory_note_arg_t *note = (mqtt_memory_note_arg_t *)arg;
+    if (note) {
+        esp_err_t err = orangepi_memory_client_upsert_note(note->sender, note->message);
+        if (err != ESP_OK) {
+            ESP_LOGW(TAG, "亲情留言同步到香橙派失败: %s", esp_err_to_name(err));
+        }
+        free(note);
+    }
     vTaskDelete(NULL);
 }
 
@@ -112,6 +132,25 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
                                     NULL,
                                     4,
                                     NULL);
+
+                        mqtt_memory_note_arg_t *sync_arg = calloc(1, sizeof(mqtt_memory_note_arg_t));
+                        if (sync_arg) {
+                            snprintf(sync_arg->sender, sizeof(sync_arg->sender), "%s", name_item->valuestring);
+                            snprintf(sync_arg->message, sizeof(sync_arg->message), "%s", note_text);
+                            BaseType_t task_ok = xTaskCreate(mqtt_memory_sync_task,
+                                                             "mqtt_mem_sync",
+                                                             4096,
+                                                             sync_arg,
+                                                             3,
+                                                             NULL);
+                            if (task_ok != pdPASS) {
+                                ESP_LOGW(TAG, "创建香橙派记忆同步任务失败");
+                                free(sync_arg);
+                            }
+                        } else {
+                            ESP_LOGW(TAG, "为香橙派记忆同步分配参数失败");
+                        }
+
                         start_doubao_chat(global_family_msg); 
                         
                     } else {

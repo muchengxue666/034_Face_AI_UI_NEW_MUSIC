@@ -1,3 +1,8 @@
 managed_components/
 .vscode/
 ./README.md
+
+AGENTS.md
+build/
+__pycache__/
+orangepi_rag_service/data/
