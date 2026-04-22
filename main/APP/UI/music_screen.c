@@ -200,7 +200,9 @@ static void fill_track_name_artist_from_filename(const char *filename, track_inf
 {
     char base[MUSIC_TRACK_NAME_LEN];
     char parsed_base[MUSIC_TRACK_NAME_LEN];
-    snprintf(base, sizeof(base), "%s", filename);
+    size_t copy_len = strnlen(filename, sizeof(base) - 1U);
+    memcpy(base, filename, copy_len);
+    base[copy_len] = '\0';
 
     char *dot = strrchr(base, '.');
     if (dot) {
@@ -208,7 +210,9 @@ static void fill_track_name_artist_from_filename(const char *filename, track_inf
     }
 
     trim_ascii_space(base);
-    snprintf(parsed_base, sizeof(parsed_base), "%s", base);
+    size_t parsed_len = strnlen(base, sizeof(parsed_base) - 1U);
+    memcpy(parsed_base, base, parsed_len);
+    parsed_base[parsed_len] = '\0';
 
     char *sep = strstr(base, " - ");
     size_t sep_len = 3U;
@@ -1051,7 +1055,7 @@ lv_obj_t *create_music_screen(void)
         lv_timer_del(s_progress_timer);
         s_progress_timer = NULL;
     }
-    s_progress_timer = lv_timer_create(progress_timer_cb, 200, NULL);
+    s_progress_timer = lv_timer_create(progress_timer_cb, 500, NULL);
 
     ensure_backend_init_task();
     sync_progress_to_ui();

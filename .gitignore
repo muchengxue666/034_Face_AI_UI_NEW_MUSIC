@@ -1,7 +1,6 @@
 managed_components/
 .vscode/
 ./README.md
-
 AGENTS.md
 build/
 __pycache__/

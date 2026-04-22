@@ -59,7 +59,7 @@ esp_err_t mipi_cam_init(void)
         return ESP_FAIL;
     }
 
-    xTaskCreatePinnedToCore(lcd_cam_task, "lcd cam display", 4096, &video_cam_fd0, 4, NULL, 0);
+    xTaskCreatePinnedToCore(lcd_cam_task, "lcd cam display", 4096, &video_cam_fd0, 3, NULL, 0);
 
     return ESP_OK;
 }
