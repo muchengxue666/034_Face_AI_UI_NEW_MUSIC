@@ -21,6 +21,7 @@ extern "C" {
 /* 函数声明 */
 lv_obj_t* create_viewer_screen(void);
 void delete_viewer_screen(void);
+void viewer_screen_set_active(bool active);
 
 #ifdef __cplusplus
 }

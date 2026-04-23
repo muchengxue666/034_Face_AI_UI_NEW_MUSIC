@@ -78,6 +78,10 @@ static bool s_backend_inited = false;
 static bool s_exfuns_ready = false;
 static bool s_audio_ready = false;
 static bool s_sd_ready = false;
+static bool s_tracks_scanned = false;
+
+#define MUSIC_PROGRESS_PERIOD_ACTIVE_MS 500
+#define MUSIC_PROGRESS_PERIOD_IDLE_MS   1500
 
 /* ==================== 闂佸搫妫欓悧鐐寸珶婵犲啰鈻斿┑鐘冲嚬閺?==================== */
 #define MUSIC_SCREEN_BG        lv_color_hex(0xFDF6E3)
@@ -312,6 +316,21 @@ static void sec_to_mmss(uint32_t sec, char out[8])
     out[5] = '\0';
 }
 
+static void ensure_placeholder_tracks(void)
+{
+    if (s_track_count > 0) {
+        return;
+    }
+
+    memset(s_tracks, 0, sizeof(s_tracks));
+    snprintf(s_tracks[0].name, MUSIC_TRACK_NAME_LEN, "%s", "加载歌曲列表...");
+    snprintf(s_tracks[0].artist, sizeof(s_tracks[0].artist), "%s", "请稍候");
+    snprintf(s_tracks[0].duration, sizeof(s_tracks[0].duration), "%s", "--:--");
+    s_tracks[0].path[0] = '\0';
+    s_track_count = 1;
+    s_current_track = 0;
+}
+
 static void scan_sd_tracks(void)
 {
     FF_DIR dir;
@@ -372,6 +391,7 @@ static void scan_sd_tracks(void)
     }
 
     s_current_track = 0;
+    s_tracks_scanned = true;
 }
 
 static void rebuild_track_list_ui(void)
@@ -407,7 +427,7 @@ static void music_backend_init_task(void *arg)
 
 static void ensure_backend_init_task(void)
 {
-    if (s_backend_inited && s_audio_ready && s_exfuns_ready && s_sd_ready) {
+    if (s_backend_inited && s_audio_ready && s_exfuns_ready && s_sd_ready && s_tracks_scanned) {
         return;
     }
     if (s_backend_task != NULL || s_backend_init_running) {
@@ -1033,7 +1053,7 @@ lv_obj_t *create_music_screen(void)
     s_pending_track = -1;
     s_switch_req = false;
     s_play_task_exit = false;
-    scan_sd_tracks();
+    ensure_placeholder_tracks();
 
     s_music_screen = lv_obj_create(NULL);
     lv_obj_set_size(s_music_screen, LV_HOR_RES, LV_VER_RES);
@@ -1055,7 +1075,7 @@ lv_obj_t *create_music_screen(void)
         lv_timer_del(s_progress_timer);
         s_progress_timer = NULL;
     }
-    s_progress_timer = lv_timer_create(progress_timer_cb, 500, NULL);
+    s_progress_timer = lv_timer_create(progress_timer_cb, MUSIC_PROGRESS_PERIOD_ACTIVE_MS, NULL);
 
     ensure_backend_init_task();
     sync_progress_to_ui();
@@ -1097,6 +1117,19 @@ void delete_music_screen(void)
         s_play_btn_lbl   = NULL;
         s_vol_lbl        = NULL;
         for (int i = 0; i < MUSIC_MAX_TRACKS; i++) s_track_rows[i] = NULL;
+    }
+}
+
+void music_screen_set_active(bool active)
+{
+    if (!s_progress_timer) {
+        return;
+    }
+
+    lv_timer_set_period(s_progress_timer,
+                        active ? MUSIC_PROGRESS_PERIOD_ACTIVE_MS : MUSIC_PROGRESS_PERIOD_IDLE_MS);
+    if (active) {
+        lv_timer_ready(s_progress_timer);
     }
 }
 

@@ -22,6 +22,7 @@ extern "C" {
 lv_obj_t* create_standby_screen(void);
 void delete_standby_screen(void);
 void trigger_standby_wake_up(void);
+void stop_breathing_animations(void);
 void restart_breathing_animations(void);
 
 #ifdef __cplusplus

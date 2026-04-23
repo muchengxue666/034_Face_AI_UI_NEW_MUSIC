@@ -86,7 +86,7 @@ LV_FONT_DECLARE(myFont24);
 #define THEME_ANIM_VERY_SLOW    800
 
 /* 屏幕过渡动画时长（毫秒）- 适老化柔和节奏 */
-#define THEME_SCREEN_ANIM_TIME  350
+#define THEME_SCREEN_ANIM_TIME  220
 
 /* ==================== 透明度 ==================== */
 #define THEME_OPA_FULL          LV_OPA_COVER

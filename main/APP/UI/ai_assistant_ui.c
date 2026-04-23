@@ -36,6 +36,32 @@ static bool s_debug_mode = false;
 static void debug_color_test_cb(lv_event_t *e);
 static void diag_test_cb(lv_event_t *e);
 
+static void ui_suspend_current_screen_workload(void)
+{
+    switch (g_ai_ui.current_state) {
+        case UI_STATE_STANDBY:
+            stop_breathing_animations();
+            break;
+        case UI_STATE_AVATAR:
+            stop_avatar_animations();
+            break;
+        case UI_STATE_VIEWER:
+            viewer_screen_set_active(false);
+            break;
+        case UI_STATE_MUSIC:
+            music_screen_set_active(false);
+            break;
+        default:
+            break;
+    }
+}
+
+static void ui_load_screen_optimized(lv_obj_t *screen, bool first_create)
+{
+    (void)first_create;
+    lv_scr_load(screen);
+}
+
 /**
  * @brief       显示诊断测试
  * @param       无
@@ -332,11 +358,13 @@ void ui_switch_to_standby(void)
     /* 锁定UI互斥锁 - 增加超时时间确保初始化阶段也能成功 */
     if (lvgl_port_lock(pdMS_TO_TICKS(1000))) {
         ESP_LOGI(TAG, "LVGL port locked successfully");
+        bool first_create = false;
         
         /* 创建或复用息屏唤醒页 */
         if (!g_ai_ui.standby_screen) {
             ESP_LOGI(TAG, "Creating new standby screen during initialization");
             g_ai_ui.standby_screen = create_standby_screen();
+            first_create = true;
             if (g_ai_ui.standby_screen) {
                 ESP_LOGI(TAG, "Standby screen created successfully");
             } else {
@@ -354,17 +382,14 @@ void ui_switch_to_standby(void)
             ESP_LOGI(TAG, "Standby screen reused and animations restarted");
         }
 
+        ui_suspend_current_screen_workload();
+
         g_ai_ui.current_screen = g_ai_ui.standby_screen;
         g_ai_ui.current_state = UI_STATE_STANDBY;
 
-        /* 使用淡入淡出动画加载屏幕（过渡更丝滑）*/
-        lv_scr_load_anim(g_ai_ui.standby_screen,
-                         LV_SCR_LOAD_ANIM_FADE_ON,
-                         THEME_SCREEN_ANIM_TIME,
-                         0,      /* 无延迟 */
-                         false   /* 不自动删除旧屏幕，保留缓存复用 */
-        );
-        ESP_LOGI(TAG, "Standby screen loaded with slide animation");
+        /* 统一关闭转场动画，优先保证稳定帧率 */
+        ui_load_screen_optimized(g_ai_ui.standby_screen, first_create);
+        ESP_LOGI(TAG, "Standby screen loaded without transition animation");
 
         lvgl_port_unlock();
         ESP_LOGI(TAG, "LVGL port unlocked");
@@ -384,21 +409,16 @@ void ui_switch_to_home(void)
         return;
     }
 
-    /* 从 avatar / standby 过来 → 淡入；从深层页返回 → 淡入 */
-    lv_scr_load_anim_t anim = LV_SCR_LOAD_ANIM_FADE_ON;
-
     if (lvgl_port_lock(0)) {
+        bool first_create = false;
         if (!g_ai_ui.home_screen) {
             g_ai_ui.home_screen = create_home_screen();
+            first_create = true;
         }
-        /* 不删 avatar screen，只停止其内部动画，避免 layout/anim 竞争崩溃
-         * avatar screen 对象保留在内存，下次唤醒时直接复用或重建 */
-        if (g_ai_ui.avatar_screen) {
-            stop_avatar_animations();
-        }
+        ui_suspend_current_screen_workload();
         g_ai_ui.current_screen = g_ai_ui.home_screen;
         g_ai_ui.current_state  = UI_STATE_HOME;
-        lv_scr_load_anim(g_ai_ui.home_screen, anim, THEME_SCREEN_ANIM_TIME, 0, false);
+        ui_load_screen_optimized(g_ai_ui.home_screen, first_create);
         lvgl_port_unlock();
     }
 }
@@ -415,15 +435,15 @@ void ui_switch_to_control(void)
     }
 
     if (lvgl_port_lock(0)) {
+        bool first_create = false;
         if (!g_ai_ui.control_panel) {
             g_ai_ui.control_panel = create_control_panel();
+            first_create = true;
         }
+        ui_suspend_current_screen_workload();
         g_ai_ui.current_screen = g_ai_ui.control_panel;
         g_ai_ui.current_state  = UI_STATE_CONTROL;
-        /* 便签淡入 */
-        lv_scr_load_anim(g_ai_ui.control_panel,
-                         LV_SCR_LOAD_ANIM_FADE_ON,
-                         THEME_SCREEN_ANIM_TIME, 0, false);
+        ui_load_screen_optimized(g_ai_ui.control_panel, first_create);
         lvgl_port_unlock();
     }
 }
@@ -440,14 +460,16 @@ void ui_switch_to_viewer(void)
     }
 
     if (lvgl_port_lock(0)) {
+        bool first_create = false;
         if (!g_ai_ui.viewer_screen) {
             g_ai_ui.viewer_screen = create_viewer_screen();
+            first_create = true;
         }
+        ui_suspend_current_screen_workload();
         g_ai_ui.current_screen = g_ai_ui.viewer_screen;
         g_ai_ui.current_state  = UI_STATE_VIEWER;
-        lv_scr_load_anim(g_ai_ui.viewer_screen,
-                         LV_SCR_LOAD_ANIM_FADE_ON,
-                         THEME_SCREEN_ANIM_TIME, 0, false);
+        ui_load_screen_optimized(g_ai_ui.viewer_screen, first_create);
+        viewer_screen_set_active(true);
         lvgl_port_unlock();
     }
 }
@@ -466,17 +488,18 @@ void ui_switch_to_avatar(void)
     }
 
     if (lvgl_port_lock(pdMS_TO_TICKS(500))) {
+        bool first_create = false;
         if (!g_ai_ui.avatar_screen) {
             g_ai_ui.avatar_screen = create_avatar_screen();
+            first_create = true;
         } else {
             /* 复用旧 screen，重启动画和自动跳转定时器 */
             restart_avatar_animations();
         }
+        ui_suspend_current_screen_workload();
         g_ai_ui.current_screen = g_ai_ui.avatar_screen;
         g_ai_ui.current_state  = UI_STATE_AVATAR;
-        lv_scr_load_anim(g_ai_ui.avatar_screen,
-                         LV_SCR_LOAD_ANIM_FADE_ON,
-                         THEME_SCREEN_ANIM_TIME, 0, false);
+        ui_load_screen_optimized(g_ai_ui.avatar_screen, first_create);
         lvgl_port_unlock();
         ESP_LOGI(TAG, "Avatar screen loaded");
     }
@@ -496,15 +519,16 @@ void ui_switch_to_music(void)
     ESP_LOGI(TAG, "Switching to music screen...");
 
     if (lvgl_port_lock(pdMS_TO_TICKS(500))) {
+        bool first_create = false;
         if (!g_ai_ui.music_screen) {
             g_ai_ui.music_screen = create_music_screen();
+            first_create = true;
         }
+        ui_suspend_current_screen_workload();
         g_ai_ui.current_screen = g_ai_ui.music_screen;
         g_ai_ui.current_state  = UI_STATE_MUSIC;
-        /* 音乐页淡入 */
-        lv_scr_load_anim(g_ai_ui.music_screen,
-                         LV_SCR_LOAD_ANIM_FADE_ON,
-                         THEME_SCREEN_ANIM_TIME, 0, false);
+        ui_load_screen_optimized(g_ai_ui.music_screen, first_create);
+        music_screen_set_active(true);
         lvgl_port_unlock();
         ESP_LOGI(TAG, "Music screen loaded");
     }

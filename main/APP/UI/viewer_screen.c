@@ -609,3 +609,15 @@ void delete_viewer_screen(void)
     }
 }
 
+void viewer_screen_set_active(bool active)
+{
+    if (!s_sensor_timer) {
+        return;
+    }
+
+    lv_timer_set_period(s_sensor_timer, active ? 3000 : 15000);
+    if (active) {
+        lv_timer_ready(s_sensor_timer);
+    }
+}
+
