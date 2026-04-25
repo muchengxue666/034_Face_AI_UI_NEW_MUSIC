@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import time
 import uuid
 from threading import RLock
@@ -8,7 +9,7 @@ from orangepi_rag_service.composer.prompt import compose_system_prompt
 from orangepi_rag_service.config.settings import Settings
 from orangepi_rag_service.importer.catalog import load_catalog, write_catalog
 from orangepi_rag_service.importer.legacy_text import parse_legacy_text
-from orangepi_rag_service.models.memory import MemoryHit, MemoryRecord, utc_now_iso
+from orangepi_rag_service.models.memory import ALLOWED_CATEGORIES, MemoryHit, MemoryRecord, utc_now_iso
 from orangepi_rag_service.retrieval.engine import RetrievalEngine
 from orangepi_rag_service.retrieval.intent import classify_intent, should_use_memory
 from orangepi_rag_service.store.sqlite_store import SQLiteMemoryStore
@@ -66,10 +67,42 @@ class MemoryOrchestrator:
         return len(records)
 
     def upsert_memories(self, records: list[MemoryRecord]) -> int:
+        records = self._prepare_records_for_upsert(records)
+        mqtt_notes = [record for record in records if record.category == "note" and record.source in {"mqtt", "mqtt_app"}]
         with self._lock:
+            self.store.delete_note_duplicates(mqtt_notes)
             self.store.upsert_many(records)
             self._refresh_indices_locked()
         return len(records)
+
+    def list_recent_memories(self, category: str | None = "note", limit: int = 20) -> list[dict]:
+        if category is not None and category not in ALLOWED_CATEGORIES:
+            raise ValueError(f"不支持的记忆分类: {category}")
+        if limit < 1 or limit > 100:
+            raise ValueError("limit 必须在 1 到 100 之间")
+        records = self.store.fetch_recent_memories(category=category, limit=limit)
+        return [record.as_dict() for record in records]
+
+    def list_memories(
+        self,
+        category: str | None = None,
+        query: str | None = None,
+        active_state: str = "active",
+        limit: int = 100,
+    ) -> list[dict]:
+        if category is not None and category not in ALLOWED_CATEGORIES:
+            raise ValueError(f"不支持的记忆分类: {category}")
+        if active_state not in {"active", "inactive", "all"}:
+            raise ValueError("active 只支持 active、inactive 或 all")
+        if limit < 1 or limit > 200:
+            raise ValueError("limit 必须在 1 到 200 之间")
+        records = self.store.list_memories(
+            category=category,
+            query_text=query.strip() if query else None,
+            active_state=active_state,
+            limit=limit,
+        )
+        return [record.as_dict() for record in records]
 
     def compose(self, query: str, session_mode: str, max_prompt_chars: int) -> dict:
         if session_mode != self.settings.default_session_mode:
@@ -106,6 +139,18 @@ class MemoryOrchestrator:
         version = stamp.replace(":", "").replace("-", "")
         self.store.set_meta("last_rebuild_time", stamp)
         self.store.set_meta("index_version", version)
+
+    @staticmethod
+    def _prepare_records_for_upsert(records: list[MemoryRecord]) -> list[MemoryRecord]:
+        prepared: dict[str, MemoryRecord] = {}
+        for record in records:
+            if record.category == "note" and record.source in {"mqtt", "mqtt_app"}:
+                digest = hashlib.sha1(
+                    f"{record.category}|{record.title}|{record.content.strip()}".encode("utf-8")
+                ).hexdigest()[:16]
+                record.id = f"note_{digest}"
+            prepared[record.id] = record
+        return list(prepared.values())
 
     @staticmethod
     def _hit_to_payload(hit: MemoryHit) -> dict:

@@ -39,7 +39,7 @@ class Settings:
                 "ORANGEPI_MEMORY_EMBED_MODEL",
                 "shibing624/text2vec-base-chinese",
             ),
-            embedding_backend=os.getenv("ORANGEPI_MEMORY_EMBED_BACKEND", "auto"),
+            embedding_backend=os.getenv("ORANGEPI_MEMORY_EMBED_BACKEND", "hashing"),
             default_session_mode="elder_companion",
             max_prompt_chars=1200,
             max_summary_chars=700,

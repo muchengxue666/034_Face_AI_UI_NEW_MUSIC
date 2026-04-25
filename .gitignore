@@ -5,3 +5,5 @@ AGENTS.md
 build/
 __pycache__/
 orangepi_rag_service/data/
+.venv/
+.venv-orangepi/

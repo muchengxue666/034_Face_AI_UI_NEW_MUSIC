@@ -1,0 +1,1553 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能记忆管理控制台</title>
+    <link rel="icon" href="data:,">
+    <style>
+        :root {
+            --paper: #f6f1e8;
+            --paper-soft: #fbf7ef;
+            --ink: #2b251f;
+            --muted: #6f665c;
+            --muted-soft: #91887d;
+            --line: #ded4c6;
+            --line-dark: #c8baaa;
+            --blue-gray: #637684;
+            --blue-gray-dark: #435763;
+            --clay: #c96a4a;
+            --clay-soft: #ead7cb;
+            --green: #6d8272;
+            --red: #a84b3f;
+            --shadow: 0 12px 28px rgba(54, 44, 33, 0.11);
+            --shadow-soft: 0 4px 12px rgba(54, 44, 33, 0.08);
+            --font-serif: "思源宋体", "Source Han Serif SC", "Source Han Serif CN", "Noto Serif CJK SC", "Songti SC", "STSong", "SimSun", serif;
+            --font-sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+            --font-mono: ui-monospace, "Cascadia Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html {
+            -webkit-text-size-adjust: 100%;
+            text-rendering: optimizeLegibility;
+        }
+
+        body {
+            margin: 0;
+            color: var(--ink);
+            background: var(--paper);
+            font-family: var(--font-sans);
+            font-variant-numeric: tabular-nums;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        button,
+        input,
+        textarea,
+        select {
+            font: inherit;
+        }
+
+        button,
+        a {
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        button {
+            border: 0;
+            cursor: pointer;
+        }
+
+        a {
+            color: inherit;
+            text-decoration: none;
+        }
+
+        h1,
+        h2,
+        h3,
+        p {
+            margin: 0;
+        }
+
+        .app {
+            min-height: 100vh;
+            background:
+                linear-gradient(180deg, rgba(255, 255, 255, 0.28), transparent 220px),
+                var(--paper);
+        }
+
+        .hero {
+            position: relative;
+            overflow: hidden;
+            min-height: 152px;
+            padding: 24px 56px 22px;
+            border-bottom: 1px solid rgba(218, 208, 195, 0.92);
+            background:
+                radial-gradient(620px 220px at 56% -42%, rgba(137, 155, 166, 0.22), transparent 66%),
+                radial-gradient(620px 260px at 84% 132%, rgba(102, 118, 124, 0.30), transparent 58%),
+                linear-gradient(105deg, rgba(253, 248, 238, 0.98), rgba(244, 237, 225, 0.94) 45%, rgba(210, 219, 219, 0.88)),
+                var(--paper-soft);
+        }
+
+        .hero::before,
+        .hero::after {
+            content: "";
+            position: absolute;
+            pointer-events: none;
+        }
+
+        .hero::before {
+            right: 98px;
+            top: -46px;
+            width: 510px;
+            height: 220px;
+            border-radius: 46% 54% 55% 45%;
+            background: rgba(91, 112, 126, 0.16);
+            transform: rotate(-9deg);
+        }
+
+        .hero::after {
+            right: 304px;
+            top: 42px;
+            width: 410px;
+            height: 150px;
+            border-radius: 58% 42% 48% 52%;
+            background: rgba(76, 97, 110, 0.12);
+            transform: rotate(7deg);
+        }
+
+        .hero-inner {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            justify-content: space-between;
+            gap: 30px;
+            max-width: 1500px;
+            margin: 0 auto;
+        }
+
+        .hero-copy {
+            min-width: 0;
+        }
+
+        .hero-title {
+            font-family: var(--font-serif);
+            font-size: 31px;
+            font-weight: 600;
+            line-height: 1.02;
+            letter-spacing: 0;
+        }
+
+        .hero-subtitle {
+            margin-top: 4px;
+            font-family: var(--font-serif);
+            font-size: 29px;
+            font-weight: 500;
+            line-height: 1.06;
+            letter-spacing: 0;
+        }
+
+        .hero-metrics {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .metric-pill,
+        .summary-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            min-height: 23px;
+            max-width: 280px;
+            padding: 4px 9px;
+            border: 1px solid rgba(203, 191, 176, 0.74);
+            border-radius: 999px;
+            color: #463e36;
+            background: rgba(236, 228, 215, 0.72);
+            font-size: 12px;
+            line-height: 1.1;
+            box-shadow: 0 1px 2px rgba(54, 44, 33, 0.06);
+        }
+
+        .metric-pill strong,
+        .summary-pill strong {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-weight: 600;
+        }
+
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+        }
+
+        .dot {
+            flex: 0 0 auto;
+            width: 8px;
+            height: 8px;
+            border-radius: 999px;
+            background: #a66b2c;
+        }
+
+        .dot.ok {
+            background: #34805f;
+        }
+
+        .hero-actions {
+            display: flex;
+            align-items: flex-start;
+            flex-wrap: nowrap;
+            flex: 0 0 auto;
+            justify-content: flex-end;
+            gap: 11px;
+            padding-top: 36px;
+        }
+
+        .hero-action {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 29px;
+            padding: 7px 17px;
+            border: 1px solid rgba(139, 128, 116, 0.66);
+            border-radius: 999px;
+            color: var(--ink);
+            background: rgba(255, 251, 244, 0.84);
+            box-shadow: 0 2px 7px rgba(54, 44, 33, 0.14);
+            font-family: var(--font-serif);
+            font-size: 13px;
+            line-height: 1;
+            transition: transform 150ms ease, box-shadow 150ms ease, background 150ms ease;
+        }
+
+        .hero-action:hover {
+            transform: translateY(-1px);
+            background: rgba(255, 253, 248, 0.96);
+            box-shadow: 0 8px 16px rgba(54, 44, 33, 0.14);
+        }
+
+        .hero-action.active {
+            color: #fffaf0;
+            border-color: rgba(46, 63, 72, 0.70);
+            background: rgba(67, 87, 99, 0.86);
+        }
+
+        .workspace {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(300px, 0.38fr);
+            gap: 0;
+            max-width: 920px;
+            margin: 0 auto;
+            padding: 23px 0 34px;
+        }
+
+        .view[hidden] {
+            display: none;
+        }
+
+        .list-pane {
+            padding-right: 18px;
+        }
+
+        .editor-pane {
+            padding-left: 22px;
+            border-left: 1px solid rgba(218, 208, 195, 0.92);
+        }
+
+        .section-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 10px;
+        }
+
+        .section-title {
+            font-family: var(--font-serif);
+            font-size: 24px;
+            font-weight: 500;
+            line-height: 1.1;
+            letter-spacing: 0;
+        }
+
+        .ghost-btn,
+        .primary-btn,
+        .danger-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 32px;
+            padding: 7px 16px;
+            border-radius: 999px;
+            box-shadow: var(--shadow-soft);
+            font-size: 13px;
+            transition: transform 150ms ease, box-shadow 150ms ease, background 150ms ease;
+        }
+
+        .primary-btn {
+            color: #fffaf0;
+            background: var(--blue-gray);
+        }
+
+        .ghost-btn {
+            color: var(--ink);
+            border: 1px solid rgba(151, 140, 126, 0.58);
+            background: rgba(255, 251, 244, 0.72);
+        }
+
+        .danger-btn {
+            color: #fffaf0;
+            background: var(--red);
+        }
+
+        .primary-btn:hover,
+        .ghost-btn:hover,
+        .danger-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 8px 18px rgba(54, 44, 33, 0.13);
+        }
+
+        .danger-btn.hidden {
+            display: none;
+        }
+
+        .filters {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 116px 116px 116px;
+            gap: 8px;
+            padding-bottom: 11px;
+            border-bottom: 1px solid rgba(218, 208, 195, 0.86);
+        }
+
+        .field {
+            display: grid;
+            gap: 5px;
+            min-width: 0;
+        }
+
+        .filters .field label {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+        }
+
+        label {
+            color: var(--ink);
+            font-family: var(--font-serif);
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        input,
+        textarea,
+        select {
+            width: 100%;
+            min-width: 0;
+            border: 1px solid rgba(211, 199, 184, 0.92);
+            border-radius: 6px;
+            padding: 7px 9px;
+            color: var(--ink);
+            background: rgba(255, 252, 246, 0.62);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.66);
+            font-size: 13px;
+            outline: none;
+            transition: border-color 150ms ease, box-shadow 150ms ease, background 150ms ease;
+        }
+
+        input:focus,
+        textarea:focus,
+        select:focus {
+            border-color: rgba(99, 118, 132, 0.74);
+            background: rgba(255, 253, 249, 0.95);
+            box-shadow: 0 0 0 3px rgba(99, 118, 132, 0.12);
+        }
+
+        textarea {
+            min-height: 92px;
+            resize: vertical;
+        }
+
+        .summary-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 7px;
+            margin-top: 9px;
+        }
+
+        .summary-pill.current {
+            color: #fffaf0;
+            border-color: rgba(67, 87, 99, 0.70);
+            background: rgba(67, 87, 99, 0.86);
+        }
+
+        .toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 11px;
+        }
+
+        .message {
+            min-height: 20px;
+            margin-top: 6px;
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .message.error {
+            color: var(--red);
+        }
+
+        .memory-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 10px;
+            margin-top: 11px;
+            padding-right: 16px;
+        }
+
+        .memory-card {
+            display: grid;
+            align-content: start;
+            gap: 7px;
+            width: 100%;
+            min-height: 121px;
+            padding: 12px;
+            text-align: left;
+            border: 1px solid rgba(211, 199, 184, 0.95);
+            border-radius: 8px;
+            color: var(--ink);
+            background: rgba(255, 252, 246, 0.52);
+            box-shadow: 0 4px 12px rgba(54, 44, 33, 0.08);
+            transition: transform 150ms ease, box-shadow 150ms ease, background 150ms ease, border-color 150ms ease;
+        }
+
+        .memory-card:hover,
+        .memory-card.active {
+            transform: translateY(-1px);
+            border-color: rgba(99, 118, 132, 0.62);
+            background: rgba(255, 252, 246, 0.92);
+            box-shadow: 0 12px 24px rgba(54, 44, 33, 0.13);
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            width: fit-content;
+            max-width: 100%;
+            padding: 4px 8px;
+            border-radius: 999px;
+            border: 1px solid rgba(211, 199, 184, 0.80);
+            color: #4f5f67;
+            background: rgba(221, 228, 226, 0.72);
+            font-size: 11px;
+            line-height: 1;
+            white-space: nowrap;
+        }
+
+        .badge.family,
+        .badge.event,
+        .badge.preference,
+        .badge.note {
+            color: #805142;
+            background: rgba(234, 215, 203, 0.76);
+        }
+
+        .badge.health,
+        .badge.medication,
+        .badge.safety {
+            color: #4d6655;
+            background: rgba(215, 225, 215, 0.72);
+        }
+
+        .badge.disabled {
+            color: #8a5348;
+            background: rgba(238, 217, 212, 0.78);
+        }
+
+        .card-title {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-family: var(--font-serif);
+            font-size: 15px;
+            font-weight: 600;
+            line-height: 1.15;
+        }
+
+        .card-date {
+            color: var(--muted);
+            font-size: 11px;
+        }
+
+        .card-content {
+            color: #4d463f;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            font-size: 12px;
+            line-height: 1.35;
+        }
+
+        .empty-state {
+            grid-column: 1 / -1;
+            display: grid;
+            gap: 8px;
+            min-height: 130px;
+            align-content: center;
+            justify-items: start;
+            padding: 18px;
+            border: 1px dashed var(--line-dark);
+            border-radius: 8px;
+            color: var(--muted);
+            background: rgba(255, 252, 246, 0.48);
+        }
+
+        .editor-form {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        .field.full {
+            grid-column: 1 / -1;
+        }
+
+        .check-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-height: 34px;
+        }
+
+        input[type="checkbox"] {
+            width: auto;
+        }
+
+        .advanced {
+            grid-column: 1 / -1;
+            padding: 10px;
+            border: 1px solid rgba(211, 199, 184, 0.82);
+            border-radius: 8px;
+            background: rgba(255, 252, 246, 0.42);
+        }
+
+        .advanced summary {
+            cursor: pointer;
+            color: var(--blue-gray-dark);
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .advanced-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .editor-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 14px;
+        }
+
+        .dirty {
+            display: none;
+        }
+
+        .dirty.visible {
+            display: inline-flex;
+            color: #82582f;
+            background: rgba(234, 215, 184, 0.82);
+        }
+
+        .search-mark {
+            border-radius: 3px;
+            color: var(--ink);
+            background: rgba(201, 106, 74, 0.23);
+        }
+
+        .test-view {
+            max-width: 920px;
+            margin: 0 auto;
+            padding: 23px 0 34px;
+        }
+
+        .test-grid {
+            display: grid;
+            grid-template-columns: minmax(300px, 0.46fr) minmax(0, 1fr);
+            gap: 18px;
+        }
+
+        .test-card {
+            padding: 18px;
+            border: 1px solid rgba(218, 208, 195, 0.88);
+            border-radius: 10px;
+            background: rgba(255, 252, 246, 0.50);
+            box-shadow: var(--shadow-soft);
+        }
+
+        .quick-row,
+        .test-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 10px 0;
+        }
+
+        pre {
+            margin: 10px 0 0;
+            min-height: 180px;
+            max-height: 460px;
+            overflow: auto;
+            padding: 12px;
+            border-radius: 8px;
+            color: #f6eadc;
+            background: #2b251f;
+            font-family: var(--font-mono);
+            font-size: 12px;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .result-summary {
+            display: grid;
+            gap: 10px;
+        }
+
+        .result-card,
+        .hit-card {
+            padding: 11px;
+            border: 1px solid rgba(218, 208, 195, 0.88);
+            border-radius: 8px;
+            background: rgba(255, 252, 246, 0.56);
+        }
+
+        .result-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 8px;
+        }
+
+        .result-metric {
+            display: grid;
+            gap: 3px;
+            padding: 8px;
+            border-radius: 8px;
+            background: rgba(255, 252, 246, 0.66);
+        }
+
+        .hit-list {
+            display: grid;
+            gap: 8px;
+        }
+        
+        @media (max-width: 960px) {
+            .hero {
+                padding: 22px 24px;
+            }
+
+            .hero-inner,
+            .workspace,
+            .test-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .hero-inner {
+                display: grid;
+            }
+
+            .hero-actions {
+                justify-content: flex-start;
+                padding-top: 0;
+            }
+
+            .workspace,
+            .test-view {
+                padding: 22px 18px 32px;
+            }
+
+            .list-pane {
+                padding-right: 0;
+            }
+
+            .editor-pane {
+                margin-top: 26px;
+                padding-left: 0;
+                border-left: 0;
+            }
+
+            .memory-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                padding-right: 0;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .hero {
+                padding: 18px 16px;
+            }
+
+            .hero-title {
+                font-size: 29px;
+            }
+
+            .hero-subtitle {
+                font-size: 25px;
+            }
+
+            .hero-actions,
+            .filters,
+            .editor-form,
+            .advanced-grid,
+            .result-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .hero-actions {
+                display: grid;
+            }
+
+            .hero-action,
+            .primary-btn,
+            .ghost-btn,
+            .danger-btn {
+                width: 100%;
+            }
+
+            .filters {
+                grid-template-columns: 1fr;
+            }
+
+            .memory-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+    <link rel="stylesheet" href="/admin.css?v=20260425-3">
+    <link rel="stylesheet" href="/admin_beauty.css?v=20260425-1">
+</head>
+<body>
+    <main class="app">
+        <header class="topbar">
+            <div class="topbar-inner">
+                <div class="brand-area">
+                    <div class="product-mark">OPi</div>
+                    <div>
+                        <p class="eyebrow">香橙派家庭记忆中枢</p>
+                        <h1 class="page-title">记忆管理后台</h1>
+                    </div>
+                </div>
+                <div class="hero-metrics">
+                    <span class="metric-pill">记忆数量 <strong id="memory-count">-</strong></span>
+                    <span class="metric-pill">索引版本 <strong id="index-version">-</strong></span>
+                    <span class="metric-pill">向量引擎 <strong id="embedding-backend">-</strong></span>
+                    <span class="metric-pill metric-status"><span id="health-dot" class="dot"></span><strong id="health-text">未连接</strong></span>
+                </div>
+                <nav class="nav-tabs">
+                    <button id="memory-tab" class="hero-action active" type="button"><span class="btn-icon" aria-hidden="true">▦</span>记忆管理</button>
+                    <button id="test-tab" class="hero-action" type="button"><span class="btn-icon" aria-hidden="true">⌁</span>联调测试</button>
+                    <a class="hero-action" href="/docs"><span class="btn-icon" aria-hidden="true">?</span>接口文档</a>
+                </nav>
+            </div>
+        </header>
+
+        <section id="memory-view" class="workspace view">
+            <section class="list-pane surface">
+                <div class="section-head">
+                    <div>
+                        <p class="section-kicker">Memory Catalog</p>
+                        <h2 class="section-title">记忆列表</h2>
+                    </div>
+                    <div class="head-actions">
+                        <button id="refresh-btn" class="ghost-btn" type="button"><span class="btn-icon" aria-hidden="true">↻</span>刷新</button>
+                        <button id="new-btn" class="primary-btn" type="button"><span class="btn-icon" aria-hidden="true">+</span>新增记忆</button>
+                        <button id="import-btn" class="ghost-btn" type="button"><span class="btn-icon" aria-hidden="true">⇩</span>导入记忆库</button>
+                    </div>
+                </div>
+
+                <div class="filters">
+                    <div class="field">
+                        <label for="search-input">搜索</label>
+                        <input id="search-input" type="search" placeholder="标题、内容或关键词">
+                    </div>
+                    <div class="field">
+                        <label for="category-filter">分类</label>
+                        <select id="category-filter"></select>
+                    </div>
+                    <div class="field">
+                        <label for="active-filter">状态</label>
+                        <select id="active-filter">
+                            <option value="active">启用</option>
+                            <option value="inactive">停用</option>
+                            <option value="all">全部</option>
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label for="sort-input">排序</label>
+                        <select id="sort-input">
+                            <option value="updated_desc">最近更新</option>
+                            <option value="priority_desc">优先级</option>
+                            <option value="category_asc">分类</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="list-summary" class="summary-row"></div>
+                <p id="list-message" class="message"></p>
+                <div id="memory-list" class="memory-grid"></div>
+            </section>
+
+            <aside class="editor-pane surface">
+                <div class="form-header">
+                    <div>
+                        <p class="section-kicker">Memory Editor</p>
+                        <h2 class="section-title">编辑记忆</h2>
+                    </div>
+                    <div class="summary-row">
+                        <span id="form-mode" class="badge">新增</span>
+                        <span id="dirty-indicator" class="badge dirty">未保存</span>
+                    </div>
+                </div>
+
+                <form id="memory-form" class="editor-form">
+                    <div class="field">
+                        <label for="category-input">分类</label>
+                        <select id="category-input" name="category"></select>
+                    </div>
+                    <div class="field">
+                        <label for="priority-input">优先级</label>
+                        <input id="priority-input" name="priority" type="number" min="0" max="100" value="50">
+                    </div>
+                    <div class="field full">
+                        <label for="title-input">标题</label>
+                        <input id="title-input" name="title" required>
+                    </div>
+                    <div class="field full">
+                        <label for="content-input">内容</label>
+                        <textarea id="content-input" name="content" required></textarea>
+                    </div>
+                    <div class="field full">
+                        <label for="keywords-input">关键词</label>
+                        <input id="keywords-input" name="keywords" placeholder="用逗号分隔">
+                    </div>
+                    <div class="field">
+                        <label>启用状态</label>
+                        <div class="check-row">
+                            <input id="active-input" name="is_active" type="checkbox" checked>
+                            <label for="active-input">启用</label>
+                        </div>
+                    </div>
+
+                    <details class="advanced">
+                        <summary>高级设置</summary>
+                        <div class="advanced-grid">
+                            <div class="field full">
+                                <label for="id-input">编号</label>
+                                <input id="id-input" name="id" placeholder="留空则由服务端生成">
+                            </div>
+                            <div class="field">
+                                <label for="source-input">来源</label>
+                                <input id="source-input" name="source" value="admin">
+                            </div>
+                            <div class="field">
+                                <label for="effective-input">生效时间</label>
+                                <input id="effective-input" name="effective_at" type="datetime-local">
+                            </div>
+                            <div class="field">
+                                <label for="expires-input">过期时间</label>
+                                <input id="expires-input" name="expires_at" type="datetime-local">
+                            </div>
+                        </div>
+                    </details>
+                </form>
+
+                <div class="editor-actions">
+                    <button id="save-btn" class="primary-btn" type="button"><span class="btn-icon" aria-hidden="true">✓</span>保存</button>
+                    <button id="save-test-btn" class="primary-btn" type="button"><span class="btn-icon" aria-hidden="true">▶</span>保存并测试</button>
+                    <button id="clear-btn" class="ghost-btn" type="button"><span class="btn-icon" aria-hidden="true">×</span>清空</button>
+                    <button id="disable-btn" class="danger-btn hidden" type="button"><span class="btn-icon" aria-hidden="true">!</span>停用</button>
+                </div>
+                <p id="form-message" class="message"></p>
+            </aside>
+        </section>
+
+        <section id="test-view" class="test-view view" hidden>
+            <div class="test-grid">
+                <section class="test-panel">
+                    <div class="section-head">
+                        <div>
+                            <p class="section-kicker">RAG Compose</p>
+                            <h2 class="section-title">联调测试</h2>
+                        </div>
+                        <button id="test-health-btn" class="ghost-btn" type="button"><span class="btn-icon" aria-hidden="true">●</span>健康检查</button>
+                    </div>
+                    <div class="quick-row">
+                        <button class="ghost-btn quick-query" type="button" data-query="我早上几点吃降压药">用药查询</button>
+                        <button class="ghost-btn quick-query" type="button" data-query="李美华是谁">家人关系</button>
+                        <button class="ghost-btn quick-query" type="button" data-query="奶奶中午几点午睡">作息查询</button>
+                        <button class="ghost-btn quick-query" type="button" data-query="家里人什么时候来看我">留言命中</button>
+                    </div>
+                    <div class="field full">
+                        <label for="compose-query">用户问题</label>
+                        <textarea id="compose-query">我早上几点吃降压药</textarea>
+                    </div>
+                    <input id="compose-mode" type="hidden" value="elder_companion">
+                    <div class="editor-form">
+                        <div class="field">
+                            <label for="compose-mode-visible">会话模式</label>
+                            <input id="compose-mode-visible" value="老人陪伴模式" disabled>
+                        </div>
+                        <div class="field">
+                            <label for="compose-limit">提示词长度</label>
+                            <input id="compose-limit" type="number" min="400" max="1200" value="1200">
+                        </div>
+                    </div>
+                    <div class="test-actions">
+                        <button id="compose-btn" class="primary-btn" type="button"><span class="btn-icon" aria-hidden="true">▶</span>执行编排</button>
+                        <button id="catalog-btn" class="ghost-btn" type="button"><span class="btn-icon" aria-hidden="true">▤</span>查看记忆库</button>
+                        <button id="legacy-import-btn" class="ghost-btn" type="button"><span class="btn-icon" aria-hidden="true">⇄</span>迁移旧文本</button>
+                    </div>
+                </section>
+
+                <section class="output-panel">
+                    <div class="section-head">
+                        <div>
+                            <p class="section-kicker">Response</p>
+                            <h2 class="section-title">输出结果</h2>
+                        </div>
+                        <button id="clear-output-btn" class="ghost-btn" type="button"><span class="btn-icon" aria-hidden="true">×</span>清空</button>
+                    </div>
+                    <div id="result-summary" class="result-summary">
+                        <div class="result-card">等待操作...</div>
+                    </div>
+                    <pre id="response-panel">等待操作...</pre>
+                    <pre id="catalog-panel">等待加载...</pre>
+                </section>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        const categories = [
+            "profile", "family", "health", "medication", "diet", "routine",
+            "preference", "event", "contact", "safety", "note"
+        ];
+
+        const categoryLabels = {
+            profile: "个人档案",
+            family: "家人关系",
+            health: "健康状态",
+            medication: "用药记录",
+            diet: "饮食习惯",
+            routine: "作息时间",
+            preference: "兴趣爱好",
+            event: "重要日期",
+            contact: "紧急联系",
+            safety: "特别提醒",
+            note: "家属留言",
+        };
+
+        const state = {
+            items: [],
+            selectedId: "",
+            dirty: false,
+        };
+
+        const els = {
+            healthDot: document.getElementById("health-dot"),
+            healthText: document.getElementById("health-text"),
+            memoryCount: document.getElementById("memory-count"),
+            indexVersion: document.getElementById("index-version"),
+            embeddingBackend: document.getElementById("embedding-backend"),
+            categoryFilter: document.getElementById("category-filter"),
+            categoryInput: document.getElementById("category-input"),
+            activeFilter: document.getElementById("active-filter"),
+            sortInput: document.getElementById("sort-input"),
+            searchInput: document.getElementById("search-input"),
+            listSummary: document.getElementById("list-summary"),
+            memoryList: document.getElementById("memory-list"),
+            listMessage: document.getElementById("list-message"),
+            formMessage: document.getElementById("form-message"),
+            formMode: document.getElementById("form-mode"),
+            dirtyIndicator: document.getElementById("dirty-indicator"),
+            form: document.getElementById("memory-form"),
+            idInput: document.getElementById("id-input"),
+            titleInput: document.getElementById("title-input"),
+            contentInput: document.getElementById("content-input"),
+            keywordsInput: document.getElementById("keywords-input"),
+            sourceInput: document.getElementById("source-input"),
+            priorityInput: document.getElementById("priority-input"),
+            activeInput: document.getElementById("active-input"),
+            effectiveInput: document.getElementById("effective-input"),
+            expiresInput: document.getElementById("expires-input"),
+            memoryTab: document.getElementById("memory-tab"),
+            testTab: document.getElementById("test-tab"),
+            memoryView: document.getElementById("memory-view"),
+            testView: document.getElementById("test-view"),
+            resultSummary: document.getElementById("result-summary"),
+            responsePanel: document.getElementById("response-panel"),
+            catalogPanel: document.getElementById("catalog-panel"),
+            disableBtn: document.getElementById("disable-btn"),
+        };
+
+        function categoryDisplay(category) {
+            return categoryLabels[category] || category;
+        }
+
+        function backendDisplay(value) {
+            const backendLabels = {
+                hashing: "哈希模式",
+                "sentence-transformer": "语义模型",
+            };
+            return backendLabels[value] || value || "-";
+        }
+
+        function fillCategoryOptions() {
+            const options = categories
+                .map((item) => `<option value="${item}">${categoryDisplay(item)}</option>`)
+                .join("");
+            els.categoryFilter.innerHTML = `<option value="">全部分类</option>${options}`;
+            els.categoryInput.innerHTML = options;
+            els.categoryInput.value = "note";
+        }
+
+        function escapeHtml(value) {
+            return String(value ?? "")
+                .replaceAll("&", "&amp;")
+                .replaceAll("<", "&lt;")
+                .replaceAll(">", "&gt;")
+                .replaceAll('"', "&quot;");
+        }
+
+        function compactStamp(value) {
+            if (!value) return "-";
+            return String(value)
+                .replaceAll("-", "")
+                .replaceAll(":", "")
+                .replace(".000", "")
+                .replace("+00:00", "+0000")
+                .slice(0, 24);
+        }
+
+        function highlightHtml(value, query) {
+            const text = String(value || "");
+            const needle = String(query || "").trim();
+            if (!needle) return escapeHtml(text);
+            const lowerText = text.toLowerCase();
+            const lowerNeedle = needle.toLowerCase();
+            let cursor = 0;
+            let html = "";
+            while (cursor < text.length) {
+                const index = lowerText.indexOf(lowerNeedle, cursor);
+                if (index < 0) {
+                    html += escapeHtml(text.slice(cursor));
+                    break;
+                }
+                html += escapeHtml(text.slice(cursor, index));
+                html += `<mark class="search-mark">${escapeHtml(text.slice(index, index + needle.length))}</mark>`;
+                cursor = index + needle.length;
+            }
+            return html;
+        }
+
+        function setDirty(isDirty) {
+            state.dirty = Boolean(isDirty);
+            els.dirtyIndicator.classList.toggle("visible", state.dirty);
+        }
+
+        function confirmDiscardDirty() {
+            if (!state.dirty) return true;
+            return window.confirm("当前编辑内容尚未保存，确认丢弃这些修改？");
+        }
+
+        async function requestJson(url, options = {}) {
+            const response = await fetch(url, {
+                headers: { "Content-Type": "application/json" },
+                ...options,
+            });
+            const text = await response.text();
+            const payload = text ? JSON.parse(text) : {};
+            if (!response.ok) {
+                throw new Error(payload.detail || `请求失败：${response.status}`);
+            }
+            return payload;
+        }
+
+        function showJson(target, data) {
+            target.textContent = typeof data === "string" ? data : JSON.stringify(data, null, 2);
+        }
+
+        function switchView(viewName) {
+            const showTest = viewName === "test";
+            els.memoryView.hidden = showTest;
+            els.testView.hidden = !showTest;
+            els.memoryTab.classList.toggle("active", !showTest);
+            els.testTab.classList.toggle("active", showTest);
+            if (showTest) refreshCatalog();
+        }
+
+        async function refreshHealth() {
+            try {
+                const payload = await requestJson("/api/v1/health");
+                els.healthDot.classList.add("ok");
+                els.healthText.textContent = payload.degraded ? "降级可用" : "运行正常";
+                els.memoryCount.textContent = payload.memory_count ?? "-";
+                els.indexVersion.textContent = compactStamp(payload.index_version || "-");
+                els.embeddingBackend.textContent = backendDisplay(payload.embedding_backend);
+                return payload;
+            } catch (error) {
+                els.healthDot.classList.remove("ok");
+                els.healthText.textContent = "未连接";
+                throw error;
+            }
+        }
+
+        async function refreshHealthToPanel() {
+            try {
+                const payload = await refreshHealth();
+                showJson(els.responsePanel, payload);
+                renderOperationSummary("健康检查", `服务状态：${payload.degraded ? "降级可用" : "运行正常"}，记忆数量：${payload.memory_count}`);
+            } catch (error) {
+                showJson(els.responsePanel, String(error));
+                renderOperationSummary("健康检查失败", error.message);
+            }
+        }
+
+        async function loadMemories() {
+            els.listMessage.className = "message";
+            els.listMessage.textContent = "加载中...";
+            const params = new URLSearchParams();
+            if (els.categoryFilter.value) params.set("category", els.categoryFilter.value);
+            if (els.searchInput.value.trim()) params.set("q", els.searchInput.value.trim());
+            params.set("active", els.activeFilter.value);
+            params.set("limit", "200");
+
+            try {
+                const payload = await requestJson(`/api/v1/memories?${params.toString()}`);
+                state.items = payload.items || [];
+                renderList();
+                els.listMessage.textContent = `共 ${payload.total} 条`;
+            } catch (error) {
+                els.listMessage.className = "message error";
+                els.listMessage.textContent = error.message;
+            }
+        }
+
+        function sortedItems(items) {
+            const sorted = [...items];
+            if (els.sortInput.value === "priority_desc") {
+                sorted.sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0) || compareDateDesc(a.updated_at, b.updated_at));
+            } else if (els.sortInput.value === "category_asc") {
+                sorted.sort((a, b) => String(a.category).localeCompare(String(b.category), "zh-CN") || compareDateDesc(a.updated_at, b.updated_at));
+            } else {
+                sorted.sort((a, b) => compareDateDesc(a.updated_at, b.updated_at));
+            }
+            return sorted;
+        }
+
+        function compareDateDesc(left, right) {
+            const leftTime = new Date(left || 0).getTime() || 0;
+            const rightTime = new Date(right || 0).getTime() || 0;
+            return rightTime - leftTime;
+        }
+
+        function renderListSummary(items) {
+            const counts = new Map();
+            let activeCount = 0;
+            let inactiveCount = 0;
+            items.forEach((item) => {
+                counts.set(item.category, (counts.get(item.category) || 0) + 1);
+                if (item.is_active) activeCount += 1;
+                else inactiveCount += 1;
+            });
+
+            const categoryChips = [...counts.entries()]
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 6)
+                .map(([category, count]) => `<span class="summary-pill">${escapeHtml(categoryDisplay(category))}: <strong>${count}</strong></span>`)
+                .join("");
+
+            els.listSummary.innerHTML = `
+                <span class="summary-pill current">当前：<strong>${items.length}</strong></span>
+                <span class="summary-pill">启用：<strong>${activeCount}</strong></span>
+                <span class="summary-pill">停用：<strong>${inactiveCount}</strong></span>
+                ${categoryChips}
+            `;
+        }
+
+        function renderList() {
+            const items = sortedItems(state.items);
+            const query = els.searchInput.value.trim();
+            renderListSummary(items);
+            if (!items.length) {
+                els.memoryList.innerHTML = `
+                    <div class="empty-state">
+                        <strong>没有符合条件的记忆</strong>
+                        <span>可以调整筛选条件，或新增一条记忆。</span>
+                    </div>
+                `;
+                return;
+            }
+
+            els.memoryList.innerHTML = items.map((item) => {
+                const activeClass = item.id === state.selectedId ? " active" : "";
+                const badgeClass = item.is_active ? item.category : "disabled";
+                const activeText = item.is_active ? "已启用" : "已停用";
+                return `
+                    <button class="memory-card${activeClass}" type="button" data-id="${escapeHtml(item.id)}">
+                        <span class="card-top">
+                            <span class="badge ${escapeHtml(badgeClass)}">${escapeHtml(categoryDisplay(item.category))}</span>
+                            <span class="card-date">${escapeHtml(compactStamp(item.updated_at))}</span>
+                        </span>
+                        <span class="card-title">${highlightHtml(item.title, query)}</span>
+                        <span class="card-content">${highlightHtml(item.content || "", query)}</span>
+                        <span class="card-footer">
+                            <span>优先级 ${escapeHtml(item.priority ?? "-")}</span>
+                            <span>${escapeHtml(activeText)}</span>
+                        </span>
+                    </button>
+                `;
+            }).join("");
+        }
+
+        function isoToLocalInput(value) {
+            if (!value) return "";
+            const date = new Date(value);
+            if (Number.isNaN(date.getTime())) return String(value).slice(0, 16);
+            const pad = (number) => String(number).padStart(2, "0");
+            return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+        }
+
+        function localInputToIso(value) {
+            if (!value) return "";
+            const date = new Date(value);
+            if (Number.isNaN(date.getTime())) return value;
+            return date.toISOString().replace(".000Z", "+00:00");
+        }
+
+        function selectMemory(id) {
+            if (!confirmDiscardDirty()) return;
+            const item = state.items.find((entry) => entry.id === id);
+            if (!item) return;
+            state.selectedId = id;
+            els.formMode.textContent = "编辑";
+            els.idInput.value = item.id || "";
+            els.categoryInput.value = item.category || "note";
+            els.titleInput.value = item.title || "";
+            els.contentInput.value = item.content || "";
+            els.keywordsInput.value = (item.keywords || []).join("，");
+            els.sourceInput.value = item.source || "admin";
+            els.priorityInput.value = item.priority ?? 50;
+            els.activeInput.checked = Boolean(item.is_active);
+            els.effectiveInput.value = isoToLocalInput(item.effective_at);
+            els.expiresInput.value = isoToLocalInput(item.expires_at);
+            els.formMessage.textContent = "";
+            els.disableBtn.classList.toggle("hidden", !item.is_active);
+            setDirty(false);
+            renderList();
+        }
+
+        function resetForm(skipConfirm = false) {
+            if (!skipConfirm && !confirmDiscardDirty()) return;
+            state.selectedId = "";
+            els.form.reset();
+            els.formMode.textContent = "新增";
+            els.idInput.value = "";
+            els.categoryInput.value = "note";
+            els.sourceInput.value = "admin";
+            els.priorityInput.value = "50";
+            els.activeInput.checked = true;
+            els.effectiveInput.value = "";
+            els.expiresInput.value = "";
+            els.formMessage.textContent = "";
+            els.disableBtn.classList.add("hidden");
+            setDirty(false);
+            renderList();
+        }
+
+        function formPayload(forceActive = null) {
+            const keywords = els.keywordsInput.value
+                .split(/[，,]/)
+                .map((item) => item.trim())
+                .filter(Boolean);
+            const item = {
+                category: els.categoryInput.value,
+                title: els.titleInput.value.trim(),
+                content: els.contentInput.value.trim(),
+                keywords,
+                source: els.sourceInput.value.trim() || "admin",
+                priority: Number(els.priorityInput.value || 50),
+                is_active: forceActive === null ? els.activeInput.checked : forceActive,
+            };
+            if (els.idInput.value.trim()) item.id = els.idInput.value.trim();
+            if (els.effectiveInput.value.trim()) item.effective_at = localInputToIso(els.effectiveInput.value.trim());
+            if (els.expiresInput.value.trim()) item.expires_at = localInputToIso(els.expiresInput.value.trim());
+            return { item };
+        }
+
+        async function saveMemory(forceActive = null) {
+            if (forceActive === false && !window.confirm("确认停用这条记忆？停用后它不会参与检索命中。")) {
+                return false;
+            }
+            els.formMessage.className = "message";
+            els.formMessage.textContent = "保存中...";
+            try {
+                const payload = formPayload(forceActive);
+                if (!payload.item.title || !payload.item.content) {
+                    throw new Error("标题和内容不能为空");
+                }
+                if (Number.isNaN(payload.item.priority) || payload.item.priority < 0 || payload.item.priority > 100) {
+                    throw new Error("优先级必须在 0 到 100 之间");
+                }
+                await requestJson("/api/v1/memories/upsert", {
+                    method: "POST",
+                    body: JSON.stringify(payload),
+                });
+                els.formMessage.textContent = forceActive === false ? "已停用" : "已保存";
+                if (forceActive === false) {
+                    els.activeInput.checked = false;
+                    els.disableBtn.classList.add("hidden");
+                }
+                setDirty(false);
+                await refreshHealth();
+                await loadMemories();
+                return true;
+            } catch (error) {
+                els.formMessage.className = "message error";
+                els.formMessage.textContent = error.message;
+                return false;
+            }
+        }
+
+        async function saveAndTest() {
+            const saved = await saveMemory();
+            if (!saved) return;
+            const title = els.titleInput.value.trim();
+            const keywords = els.keywordsInput.value
+                .split(/[，,]/)
+                .map((item) => item.trim())
+                .filter(Boolean);
+            const query = keywords.length ? `${title} ${keywords.slice(0, 2).join(" ")}` : title;
+            switchView("test");
+            document.getElementById("compose-query").value = query || "这条记忆相关的信息是什么";
+            try {
+                await composeQuery();
+            } catch (error) {
+                showJson(els.responsePanel, String(error));
+                renderOperationSummary("测试失败", error.message);
+            }
+        }
+
+        async function importCatalog() {
+            if (!window.confirm("确认重新导入记忆库配置文件？当前数据库记忆会被配置内容替换。")) {
+                return;
+            }
+            els.listMessage.className = "message";
+            els.listMessage.textContent = "导入中...";
+            try {
+                const payload = await requestJson("/api/v1/memories/import", {
+                    method: "POST",
+                    body: JSON.stringify({ source_type: "catalog" }),
+                });
+                els.listMessage.textContent = `已导入 ${payload.imported} 条`;
+                showJson(els.responsePanel, payload);
+                renderOperationSummary("记忆库导入完成", `已导入 ${payload.imported} 条，索引版本：${payload.index_version}`);
+                await refreshHealth();
+                await loadMemories();
+                await refreshCatalog();
+            } catch (error) {
+                els.listMessage.className = "message error";
+                els.listMessage.textContent = error.message;
+            }
+        }
+
+        async function refreshCatalog() {
+            try {
+                const payload = await requestJson("/api/v1/debug/catalog");
+                els.catalogPanel.textContent = payload.catalog_exists ? payload.catalog_content : "当前还没有 catalog 文件。";
+            } catch (error) {
+                showJson(els.catalogPanel, String(error));
+            }
+        }
+
+        async function importSource(sourceType) {
+            if (sourceType === "legacy_text" && !window.confirm("确认迁移旧文本？当前数据库会被旧文本解析结果替换。")) {
+                return;
+            }
+            const payload = await requestJson("/api/v1/memories/import", {
+                method: "POST",
+                body: JSON.stringify({
+                    source_type: sourceType,
+                    persist_catalog: true,
+                }),
+            });
+            showJson(els.responsePanel, payload);
+            renderOperationSummary("导入完成", `已导入 ${payload.imported} 条，索引版本：${payload.index_version}`);
+            await refreshHealth();
+            await loadMemories();
+            await refreshCatalog();
+        }
+
+        async function composeQuery() {
+            const query = document.getElementById("compose-query").value.trim();
+            const sessionMode = document.getElementById("compose-mode").value.trim();
+            const maxPromptChars = Number(document.getElementById("compose-limit").value);
+            const payload = await requestJson("/api/v1/rag/compose", {
+                method: "POST",
+                body: JSON.stringify({
+                    query,
+                    session_mode: sessionMode,
+                    max_prompt_chars: maxPromptChars,
+                }),
+            });
+            showJson(els.responsePanel, payload);
+            renderComposeResult(payload);
+        }
+
+        function renderOperationSummary(title, detail = "") {
+            els.resultSummary.innerHTML = `
+                <div class="result-card">
+                    <h3>${escapeHtml(title)}</h3>
+                    ${detail ? `<p>${escapeHtml(detail)}</p>` : ""}
+                </div>
+            `;
+        }
+
+        function renderComposeResult(payload) {
+            const hits = payload.hits || [];
+            const hitCards = hits.length
+                ? hits.map((hit) => `
+                    <div class="hit-card">
+                        <strong>${escapeHtml(hit.title)}</strong>
+                        <p>${escapeHtml(hit.summary)}</p>
+                        <span class="badge">${escapeHtml(categoryDisplay(hit.category))} · ${escapeHtml(hit.source)} · ${escapeHtml(hit.score)}</span>
+                    </div>
+                `).join("")
+                : `<div class="empty-state"><strong>没有命中记忆</strong><span>可以换一个问题，或检查对应记忆是否已启用。</span></div>`;
+            els.resultSummary.innerHTML = `
+                <div class="result-card">
+                    <h3>编排概览</h3>
+                    <div class="result-grid">
+                        <div class="result-metric"><span>意图</span><strong>${escapeHtml(payload.intent || "-")}</strong></div>
+                        <div class="result-metric"><span>记忆</span><strong>${payload.has_memory ? "命中" : "无命中"}</strong></div>
+                        <div class="result-metric"><span>耗时</span><strong>${escapeHtml(payload.elapsed_ms ?? "-")}毫秒</strong></div>
+                        <div class="result-metric"><span>追踪编号</span><strong>${escapeHtml(payload.trace_id || "-")}</strong></div>
+                    </div>
+                </div>
+                <div class="result-card">
+                    <h3>命中记忆</h3>
+                    <div class="hit-list">${hitCards}</div>
+                </div>
+                <div class="result-card">
+                    <h3>系统提示词</h3>
+                    <p>${escapeHtml(payload.system_prompt || "-")}</p>
+                </div>
+            `;
+        }
+
+        function debounce(fn, delay) {
+            let timer = null;
+            return (...args) => {
+                clearTimeout(timer);
+                timer = setTimeout(() => fn(...args), delay);
+            };
+        }
+
+        function bindEvents() {
+            els.memoryTab.addEventListener("click", () => switchView("memory"));
+            els.testTab.addEventListener("click", () => switchView("test"));
+            document.getElementById("refresh-btn").addEventListener("click", () => {
+                refreshHealth();
+                loadMemories();
+            });
+            document.getElementById("new-btn").addEventListener("click", () => resetForm());
+            document.getElementById("import-btn").addEventListener("click", importCatalog);
+            document.getElementById("save-btn").addEventListener("click", () => saveMemory());
+            document.getElementById("save-test-btn").addEventListener("click", saveAndTest);
+            document.getElementById("clear-btn").addEventListener("click", () => resetForm());
+            document.getElementById("disable-btn").addEventListener("click", () => saveMemory(false));
+            els.categoryFilter.addEventListener("change", loadMemories);
+            els.activeFilter.addEventListener("change", loadMemories);
+            els.sortInput.addEventListener("change", renderList);
+            els.searchInput.addEventListener("input", debounce(loadMemories, 250));
+            els.memoryList.addEventListener("click", (event) => {
+                const item = event.target.closest("[data-id]");
+                if (item) selectMemory(item.dataset.id);
+            });
+            els.form.addEventListener("input", () => setDirty(true));
+            els.form.addEventListener("change", () => setDirty(true));
+
+            document.getElementById("test-health-btn").addEventListener("click", refreshHealthToPanel);
+            document.getElementById("catalog-btn").addEventListener("click", refreshCatalog);
+            document.getElementById("compose-btn").addEventListener("click", async () => {
+                try {
+                    await composeQuery();
+                } catch (error) {
+                    showJson(els.responsePanel, String(error));
+                    renderOperationSummary("编排失败", error.message);
+                }
+            });
+            document.getElementById("legacy-import-btn").addEventListener("click", async () => {
+                try {
+                    await importSource("legacy_text");
+                } catch (error) {
+                    showJson(els.responsePanel, String(error));
+                    renderOperationSummary("导入失败", error.message);
+                }
+            });
+            document.getElementById("clear-output-btn").addEventListener("click", () => {
+                els.resultSummary.innerHTML = `<div class="result-card">等待操作...</div>`;
+                els.responsePanel.textContent = "等待操作...";
+                els.catalogPanel.textContent = "等待加载...";
+            });
+            document.querySelectorAll(".quick-query").forEach((button) => {
+                button.addEventListener("click", () => {
+                    document.getElementById("compose-query").value = button.dataset.query || "";
+                });
+            });
+            window.addEventListener("beforeunload", (event) => {
+                if (!state.dirty) return;
+                event.preventDefault();
+                event.returnValue = "";
+            });
+        }
+
+        /* 导航按钮光标跟踪效果 */
+        document.querySelectorAll('.hero-action').forEach(btn => {
+            btn.addEventListener('mousemove', (e) => {
+                const rect = btn.getBoundingClientRect();
+                btn.style.setProperty('--x', ((e.clientX - rect.left) / rect.width * 100) + '%');
+                btn.style.setProperty('--y', ((e.clientY - rect.top) / rect.height * 100) + '%');
+            });
+        });
+
+        fillCategoryOptions();
+        bindEvents();
+        resetForm(true);
+        refreshHealth();
+        loadMemories();
+    </script>
+</body>
+</html>

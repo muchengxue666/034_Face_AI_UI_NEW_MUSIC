@@ -72,6 +72,37 @@ class SQLiteMemoryStore:
         finally:
             conn.close()
 
+    def delete_note_duplicates(self, records: list[MemoryRecord]) -> int:
+        if not records:
+            return 0
+
+        deleted = 0
+        conn = self._connect()
+        try:
+            for record in records:
+                rows = conn.execute(
+                    """
+                    SELECT id FROM memories
+                    WHERE category = 'note'
+                      AND title = ?
+                      AND content = ?
+                      AND id <> ?
+                      AND source IN ('mqtt', 'mqtt_app')
+                    """,
+                    (record.title, record.content, record.id),
+                ).fetchall()
+                ids = [row["id"] for row in rows]
+                if not ids:
+                    continue
+                placeholders = ", ".join("?" for _ in ids)
+                conn.execute(f"DELETE FROM memories_fts WHERE memory_id IN ({placeholders})", ids)
+                conn.execute(f"DELETE FROM memories WHERE id IN ({placeholders})", ids)
+                deleted += len(ids)
+            conn.commit()
+        finally:
+            conn.close()
+        return deleted
+
     def _upsert_many(self, conn: sqlite3.Connection, records: list[MemoryRecord]) -> None:
         for record in records:
             conn.execute(
@@ -140,6 +171,64 @@ class SQLiteMemoryStore:
             query += f" AND m.category IN ({placeholders})"
             values.extend(categories)
         query += " ORDER BY m.priority DESC, m.updated_at DESC"
+
+        conn = self._connect()
+        try:
+            rows = conn.execute(query, values).fetchall()
+        finally:
+            conn.close()
+        return [self._row_to_record(row) for row in rows]
+
+    def list_memories(
+        self,
+        category: str | None = None,
+        query_text: str | None = None,
+        active_state: str = "active",
+        limit: int = 100,
+    ) -> list[MemoryRecord]:
+        query = "SELECT * FROM memories m WHERE 1 = 1"
+        values: list[object] = []
+
+        if category:
+            query += " AND m.category = ?"
+            values.append(category)
+        if active_state == "active":
+            query += " AND m.is_active = 1"
+        elif active_state == "inactive":
+            query += " AND m.is_active = 0"
+
+        if query_text:
+            like_text = f"%{query_text}%"
+            query += """
+                AND (
+                    m.id LIKE ?
+                    OR m.title LIKE ?
+                    OR m.content LIKE ?
+                    OR m.keywords LIKE ?
+                    OR m.source LIKE ?
+                )
+            """
+            values.extend([like_text, like_text, like_text, like_text, like_text])
+
+        query += " ORDER BY m.updated_at DESC, m.priority DESC LIMIT ?"
+        values.append(limit)
+
+        conn = self._connect()
+        try:
+            rows = conn.execute(query, values).fetchall()
+        finally:
+            conn.close()
+        return [self._row_to_record(row) for row in rows]
+
+    def fetch_recent_memories(self, category: str | None = "note", limit: int = 20) -> list[MemoryRecord]:
+        clause, params = self._active_clause()
+        query = f"SELECT * FROM memories m WHERE {clause}"
+        values: list[object] = list(params)
+        if category:
+            query += " AND m.category = ?"
+            values.append(category)
+        query += " ORDER BY m.updated_at DESC, m.priority DESC LIMIT ?"
+        values.append(limit)
 
         conn = self._connect()
         try:

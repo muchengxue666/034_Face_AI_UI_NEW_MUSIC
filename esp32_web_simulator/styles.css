@@ -1,0 +1,374 @@
+:root {
+    color-scheme: light;
+    --bg: #f5f7fb;
+    --surface: #ffffff;
+    --surface-2: #eef3f8;
+    --line: #d8e0e8;
+    --text: #1d2733;
+    --muted: #627083;
+    --accent: #176b87;
+    --accent-2: #0f8f72;
+    --danger: #b42318;
+    --warn: #9a6700;
+    --ok: #087443;
+    --shadow: 0 10px 24px rgba(17, 34, 51, 0.08);
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    min-width: 320px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Segoe UI", "Microsoft YaHei", Arial, sans-serif;
+    letter-spacing: 0;
+}
+
+button,
+input,
+textarea,
+select {
+    font: inherit;
+}
+
+button {
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--text);
+    min-height: 36px;
+    padding: 0 12px;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+button:hover {
+    border-color: var(--accent);
+}
+
+button.primary {
+    border-color: var(--accent);
+    background: var(--accent);
+    color: white;
+}
+
+button.success {
+    border-color: var(--accent-2);
+    background: var(--accent-2);
+    color: white;
+}
+
+button.danger {
+    border-color: var(--danger);
+    color: var(--danger);
+}
+
+button:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+}
+
+.app {
+    min-height: 100vh;
+    display: grid;
+    grid-template-rows: auto auto 1fr;
+}
+
+.topbar {
+    display: grid;
+    grid-template-columns: minmax(220px, 1fr) auto auto;
+    gap: 12px;
+    align-items: end;
+    padding: 14px 18px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--line);
+}
+
+.brand {
+    align-self: center;
+}
+
+.brand h1 {
+    margin: 0;
+    font-size: 20px;
+    line-height: 1.2;
+}
+
+.brand span {
+    color: var(--muted);
+    font-size: 13px;
+}
+
+.control {
+    display: grid;
+    gap: 5px;
+}
+
+.control label {
+    color: var(--muted);
+    font-size: 12px;
+}
+
+.control input,
+.control textarea,
+.control select {
+    width: 100%;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--text);
+    border-radius: 6px;
+    padding: 9px 10px;
+    outline: none;
+}
+
+.control textarea {
+    min-height: 86px;
+    resize: vertical;
+}
+
+.control input:focus,
+.control textarea:focus,
+.control select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(23, 107, 135, 0.12);
+}
+
+.bar-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.status-strip {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(120px, 1fr));
+    gap: 1px;
+    background: var(--line);
+    border-bottom: 1px solid var(--line);
+}
+
+.metric {
+    background: var(--surface);
+    padding: 10px 14px;
+    min-height: 58px;
+}
+
+.metric span {
+    display: block;
+    color: var(--muted);
+    font-size: 12px;
+}
+
+.metric strong {
+    display: block;
+    margin-top: 4px;
+    font-size: 15px;
+    overflow-wrap: anywhere;
+}
+
+.metric.ok strong {
+    color: var(--ok);
+}
+
+.metric.warn strong {
+    color: var(--warn);
+}
+
+.metric.bad strong {
+    color: var(--danger);
+}
+
+.layout {
+    display: grid;
+    grid-template-columns: 360px minmax(0, 1fr) 390px;
+    gap: 14px;
+    padding: 14px;
+}
+
+.panel {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    box-shadow: var(--shadow);
+    min-width: 0;
+}
+
+.panel header {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: center;
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--line);
+}
+
+.panel h2 {
+    margin: 0;
+    font-size: 16px;
+}
+
+.panel-body {
+    padding: 14px;
+}
+
+.stack {
+    display: grid;
+    gap: 12px;
+}
+
+.row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.segmented {
+    display: inline-grid;
+    grid-auto-flow: column;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.segmented button {
+    border: 0;
+    border-radius: 0;
+    min-height: 34px;
+    background: var(--surface);
+}
+
+.segmented button.active {
+    background: var(--accent);
+    color: white;
+}
+
+.quick-list {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+.quick-list button {
+    text-align: left;
+    min-height: 34px;
+    padding: 6px 8px;
+    overflow-wrap: anywhere;
+}
+
+.result-box,
+.terminal,
+.json-box {
+    border: 1px solid var(--line);
+    background: #0d1117;
+    color: #d9e7ff;
+    border-radius: 6px;
+    padding: 10px;
+    overflow: auto;
+}
+
+.result-box {
+    min-height: 280px;
+    max-height: 430px;
+    white-space: pre-wrap;
+    line-height: 1.55;
+}
+
+.terminal {
+    min-height: 260px;
+    max-height: 360px;
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 13px;
+    white-space: pre-wrap;
+}
+
+.json-box {
+    min-height: 130px;
+    max-height: 260px;
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 13px;
+    white-space: pre-wrap;
+}
+
+.hit-list {
+    display: grid;
+    gap: 8px;
+}
+
+.hit {
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 10px;
+    background: var(--surface-2);
+}
+
+.hit strong {
+    display: block;
+    margin-bottom: 5px;
+}
+
+.hit small {
+    color: var(--muted);
+}
+
+.empty {
+    color: var(--muted);
+    padding: 12px;
+    border: 1px dashed var(--line);
+    border-radius: 6px;
+}
+
+.toggle-line {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--muted);
+    font-size: 13px;
+}
+
+.toggle-line input {
+    width: 16px;
+    height: 16px;
+}
+
+@media (max-width: 1180px) {
+    .layout {
+        grid-template-columns: 340px minmax(0, 1fr);
+    }
+
+    .layout .panel:nth-child(3) {
+        grid-column: 1 / -1;
+    }
+
+    .status-strip {
+        grid-template-columns: repeat(3, minmax(120px, 1fr));
+    }
+}
+
+@media (max-width: 760px) {
+    .topbar {
+        grid-template-columns: 1fr;
+    }
+
+    .layout {
+        grid-template-columns: 1fr;
+        padding: 10px;
+    }
+
+    .status-strip {
+        grid-template-columns: repeat(2, minmax(120px, 1fr));
+    }
+
+    .quick-list,
+    .grid-2 {
+        grid-template-columns: 1fr;
+    }
+}

@@ -1,0 +1,11 @@
+INFO:     127.0.0.1:3712 - "GET /admin HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3713 - "GET /admin.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3714 - "GET /admin_beauty.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10651 - "GET /admin HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10652 - "GET /admin.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10653 - "GET /admin_beauty.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8961 - "GET /admin HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8961 - "GET /admin.css?v=20260425-3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4105 - "GET /admin_beauty.css?v=20260425-1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8961 - "GET /api/v1/memories?active=active&limit=200 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4105 - "GET /api/v1/health HTTP/1.1" 200 OK

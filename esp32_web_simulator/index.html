@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>ESP32 远程模拟器</title>
+    <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+    <main class="app">
+        <section class="topbar">
+            <div class="brand">
+                <h1>ESP32 远程模拟器</h1>
+                <span>OrangePi RAG HTTP Client</span>
+            </div>
+            <div class="control">
+                <label for="baseUrl">香橙派服务地址</label>
+                <input id="baseUrl" value="http://192.168.1.190:8765" spellcheck="false">
+            </div>
+            <div class="bar-actions">
+                <button id="saveBaseUrl">保存地址</button>
+                <button id="probeBtn" class="primary">探测</button>
+            </div>
+        </section>
+
+        <section class="status-strip">
+            <div id="serviceMetric" class="metric bad">
+                <span>服务状态</span>
+                <strong id="serviceState">未初始化</strong>
+            </div>
+            <div class="metric">
+                <span>记忆数量</span>
+                <strong id="memoryCount">-</strong>
+            </div>
+            <div id="backendMetric" class="metric">
+                <span>向量后端</span>
+                <strong id="backendState">-</strong>
+            </div>
+            <div class="metric">
+                <span>索引版本</span>
+                <strong id="indexVersion">-</strong>
+            </div>
+            <div class="metric">
+                <span>Trace ID</span>
+                <strong id="traceId">-</strong>
+            </div>
+            <div class="metric">
+                <span>服务端耗时</span>
+                <strong id="elapsedMs">-</strong>
+            </div>
+        </section>
+
+        <section class="layout">
+            <article class="panel">
+                <header>
+                    <h2>ESP32 控制台</h2>
+                    <button id="resetBtn" class="danger">复位</button>
+                </header>
+                <div class="panel-body stack">
+                    <div class="row">
+                        <button id="initBtn">初始化</button>
+                        <button id="fullFlowBtn" class="success">完整问答</button>
+                    </div>
+                    <label class="toggle-line">
+                        <input id="strictMode" type="checkbox" checked>
+                        严格使用 ESP32 超时和缓冲区
+                    </label>
+                    <div class="control">
+                        <label for="queryInput">模拟 STT 文本</label>
+                        <textarea id="queryInput">我早上几点吃降压药</textarea>
+                    </div>
+                    <div class="quick-list">
+                        <button data-query="我早上几点吃降压药">降压药时间</button>
+                        <button data-query="奶奶中午几点午睡">午睡作息</button>
+                        <button data-query="家里人什么时候来看我">家属探望</button>
+                        <button data-query="李美华是谁">联系人</button>
+                    </div>
+                    <button id="composeBtn" class="primary">请求 RAG Prompt</button>
+                    <div class="control">
+                        <label for="senderInput">留言发送人</label>
+                        <input id="senderInput" value="女儿">
+                    </div>
+                    <div class="control">
+                        <label for="messageInput">留言内容</label>
+                        <textarea id="messageInput">周末我带孩子来看你。</textarea>
+                    </div>
+                    <div class="row">
+                        <button id="upsertBtn" class="success">写入家属留言</button>
+                        <button id="recentBtn">刷新留言</button>
+                    </div>
+                    <div class="terminal" id="logBox"></div>
+                </div>
+            </article>
+
+            <article class="panel">
+                <header>
+                    <h2>Prompt 输出</h2>
+                    <div class="segmented">
+                        <button id="promptTab" class="active">Prompt</button>
+                        <button id="jsonTab">JSON</button>
+                    </div>
+                </header>
+                <div class="panel-body stack">
+                    <pre id="promptBox" class="result-box"></pre>
+                    <pre id="jsonBox" class="json-box" hidden></pre>
+                    <div>
+                        <h2>命中记忆</h2>
+                        <div id="hitsBox" class="hit-list"></div>
+                    </div>
+                </div>
+            </article>
+
+            <article class="panel">
+                <header>
+                    <h2>请求镜像</h2>
+                    <button id="clearMirrorBtn">清空</button>
+                </header>
+                <div class="panel-body stack">
+                    <div>
+                        <h2>最近请求</h2>
+                        <pre id="requestBox" class="json-box"></pre>
+                    </div>
+                    <div>
+                        <h2>最近响应</h2>
+                        <pre id="responseBox" class="json-box"></pre>
+                    </div>
+                    <div>
+                        <h2>最近留言</h2>
+                        <div id="recentBox" class="hit-list"></div>
+                    </div>
+                </div>
+            </article>
+        </section>
+    </main>
+    <script src="./app.js"></script>
+</body>
+</html>
