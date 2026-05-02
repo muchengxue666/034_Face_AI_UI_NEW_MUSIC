@@ -30,6 +30,10 @@ typedef struct lvgl_port_ctx_s {
     bool                running;          /*!< LVGL任务是否正在运行 */
     int                 task_max_sleep_ms;/*!< LVGL任务最大休眠时间（毫秒） */
     int                 timer_period_ms;  /*!< 定时器周期（毫秒） */
+    /* ========== 性能监控相关 ========== */
+    int64_t             last_perf_check_ms; /*!< 上次性能检查时间戳 */
+    uint32_t            mux_wait_count;     /*!< 互斥锁等待次数（统计用） */
+    uint32_t            mux_success_count;  /*!< 互斥锁获取成功次数（统计用） */
 } lvgl_port_ctx_t;
 
 /*******************************************************************************
@@ -246,6 +250,7 @@ IRAM_ATTR bool lvgl_port_task_notify(uint32_t value)
 static void lvgl_port_task(void *arg)
 {
     uint32_t task_delay_ms = lvgl_port_ctx.task_max_sleep_ms;
+    int64_t task_start_ms = esp_timer_get_time() / 1000;
 
     /* 获取任务互斥锁 */
     if (xSemaphoreTake(lvgl_port_ctx.task_mux, 0) != pdTRUE)
@@ -255,15 +260,38 @@ static void lvgl_port_task(void *arg)
         vTaskDelete( NULL );
     }
 
+    /* 初始化性能监控时间戳 */
+    lvgl_port_ctx.last_perf_check_ms = task_start_ms;
+    lvgl_port_ctx.mux_wait_count = 0;
+    lvgl_port_ctx.mux_success_count = 0;
+
     ESP_LOGI(TAG, "Starting LVGL task");
     lvgl_port_ctx.running = true;
 
     while (lvgl_port_ctx.running)
     {
+        int64_t now_ms = esp_timer_get_time() / 1000;
+
+        /* 尝试获取互斥锁，统计等待情况 */
+        lvgl_port_ctx.mux_wait_count++;
         if (lvgl_port_lock(0))
         {
+            lvgl_port_ctx.mux_success_count++;
             task_delay_ms = lv_timer_handler();
             lvgl_port_unlock();
+        }
+
+        /* 每秒输出一次性能统计 */
+        if ((now_ms - lvgl_port_ctx.last_perf_check_ms) >= 1000)
+        {
+            ESP_LOGI(TAG, "[LVGL Perf] Mux wait/success=%lu/%lu, Task delay=%lu ms",
+                     (unsigned long)lvgl_port_ctx.mux_wait_count,
+                     (unsigned long)lvgl_port_ctx.mux_success_count,
+                     (unsigned long)task_delay_ms);
+            
+            lvgl_port_ctx.last_perf_check_ms = now_ms;
+            lvgl_port_ctx.mux_wait_count = 0;
+            lvgl_port_ctx.mux_success_count = 0;
         }
 
         if (task_delay_ms > lvgl_port_ctx.task_max_sleep_ms)

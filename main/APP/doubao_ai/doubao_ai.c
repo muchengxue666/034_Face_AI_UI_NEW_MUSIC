@@ -71,5 +71,5 @@ static void doubao_chat_task(void *pvParameters) {
 
 // 对外暴露的接口函数
 void start_doubao_chat(const char* family_message) {
-    xTaskCreate(doubao_chat_task, "doubao_task", 1024 * 12, (void *)family_message, 5, NULL);
+    xTaskCreate(doubao_chat_task, "doubao_task", 1024 * 12, (void *)family_message, 3, NULL);
 }

@@ -17,7 +17,7 @@
 
 
 #define LVGL_PORT_HANDLE_FLUSH_READY    1
-#define LVGL_PORT_FLUSH_WAIT_TIMEOUT_MS 100
+#define LVGL_PORT_FLUSH_WAIT_TIMEOUT_MS 300
 static const char *TAG = "LVGL";
 
 /*******************************************************************************

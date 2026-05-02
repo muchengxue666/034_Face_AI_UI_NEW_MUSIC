@@ -121,7 +121,7 @@ static void app_services_task(void *arg)
         ESP_LOGW(TAG, "Voice pipeline init failed: %s (continuing)", esp_err_to_name(ret));
     } else {
         ESP_LOGI(TAG, "Starting smoke alert monitor...");
-        xTaskCreatePinnedToCore(smoke_alert_task, "smoke_alert", 6144, NULL, 5, NULL, 1);
+        xTaskCreatePinnedToCore(smoke_alert_task, "smoke_alert", 6144, NULL, 3, NULL, 1);
     }
 
     ESP_LOGI(TAG, "Loading gesture recognition model...");

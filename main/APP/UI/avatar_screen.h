@@ -17,6 +17,8 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+/* ==================== 全局状态 ==================== */
+extern bool g_avatar_screen_active;  /*!< Avatar屏幕是否正在显示 */
 
 /**
  * @brief       创建小柚子化身界面

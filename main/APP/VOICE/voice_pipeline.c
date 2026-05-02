@@ -1276,7 +1276,7 @@ esp_err_t voice_pipeline_init(void)
         NULL,
         6,               /* 优先级高于UI（5），低于系统任务 */
         &s_pipeline_task,
-        1                /* 核心1，不与摄像头/UI抢占核心0 */
+        0                /* 核心0，避免与 LVGL(UI) 同核抢占 */
     );
 
     if (res != pdPASS) {

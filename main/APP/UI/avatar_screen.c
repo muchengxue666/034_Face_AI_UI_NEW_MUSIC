@@ -18,9 +18,13 @@
 #include "esp_lvgl_port.h"
 #include "esp_log.h"
 #include "esp_heap_caps.h"
+#include "esp_timer.h"
 #include "lvgl.h"
-#include <stdio.h>
 
+#include <stdio.h>
+#include <string.h>
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 static const char *TAG = "avatar_screen";
 /* 使用 LVGL 内置 CJK 字体替代自定义字体 */
 
@@ -37,12 +41,19 @@ static lv_timer_t *s_auto_transition_timer = NULL;  /* 自动跳转定时器 */
 static bool s_avatar_animating = false;
 static bool s_voice_active = false;                 /* 语音流水线是否正在运行 */
 
+
+
+/* ==================== Avatar屏幕状态 ==================== */
+bool g_avatar_screen_active = false;                 /* Avatar屏幕是否正在显示（可供其他模块查询） */
+
 /* ==================== 化身尺寸定义 ==================== */
 #define AVATAR_CIRCLE_SIZE      220
 #define AVATAR_INNER_SIZE       200
-#define FLOAT_AMPLITUDE         15      /* 浮动振幅（像素） */
-#define FLOAT_DURATION          1500    /* 浮动周期（毫秒） */
-#define AUTO_TRANSITION_MS      5000    /* 自动跳转时间（毫秒） */
+#define AUTO_TRANSITION_MS      10000    /* 自动跳转时间（毫秒） */
+
+/* ==================== GIF资源配置 ==================== */
+#define AVATAR_GIF_PATH             "/spiffs/xiaoyouzi_220.gif"
+#define AVATAR_GIF_SRC              "S:/spiffs/xiaoyouzi_220.gif"
 
 /* 小柚子配色 - 使用主题定义 */
 /* AVATAR_GOLD 已移至 ui_theme.h 中定义为 THEME_ACCENT_GOLD */
@@ -57,31 +68,7 @@ static const char *s_greetings[] = {
 };
 #define GREETING_COUNT (sizeof(s_greetings) / sizeof(s_greetings[0]))
 
-/**
- * @brief       浮动动画回调 - Y轴位移
- * @param       obj: 目标对象
- * @param       v: 当前动画值
- * @retval      无
- */
-static void float_anim_cb(void *obj, int32_t v)
-{
-    if (s_avatar_gif) {
-        lv_obj_align(s_avatar_gif, LV_ALIGN_CENTER, 0, -30 + v - FLOAT_AMPLITUDE);
-    }
-}
 
-/**
- * @brief       呼吸光晕动画回调 - 透明度
- * @param       obj: 目标对象
- * @param       v: 当前动画值 (0-255)
- * @retval      无
- */
-static void glow_anim_cb(void *obj, int32_t v)
-{
-    if (s_avatar_gif) {
-        lv_obj_set_style_opa(s_avatar_gif, v, LV_PART_MAIN);
-    }
-}
 
 /**
  * @brief       启动化身动画
@@ -90,31 +77,11 @@ static void glow_anim_cb(void *obj, int32_t v)
  */
 static void start_avatar_animations(void)
 {
-    if (s_avatar_animating) return;
+    /* 关闭常驻动画，避免持续触发重绘拖垮 LVGL 任务 */
+    if (s_avatar_animating) {
+        return;
+    }
     s_avatar_animating = true;
-
-    /* ========== 上下浮动动画 ========== */
-    lv_anim_t float_anim;
-    lv_anim_init(&float_anim);
-    lv_anim_set_var(&float_anim, s_avatar_container);
-    lv_anim_set_exec_cb(&float_anim, float_anim_cb);
-    lv_anim_set_values(&float_anim, 0, FLOAT_AMPLITUDE * 2);
-    lv_anim_set_time(&float_anim, FLOAT_DURATION);
-    lv_anim_set_playback_time(&float_anim, FLOAT_DURATION);
-    lv_anim_set_repeat_count(&float_anim, LV_ANIM_REPEAT_INFINITE);
-    lv_anim_set_path_cb(&float_anim, lv_anim_path_ease_in_out);
-    lv_anim_start(&float_anim);
-
-    /* ========== 呼吸动画（GIF透明度 200~255，轻微闪烁）========== */
-    lv_anim_t glow_anim;
-    lv_anim_init(&glow_anim);
-    lv_anim_set_var(&glow_anim, s_avatar_gif);
-    lv_anim_set_exec_cb(&glow_anim, glow_anim_cb);
-    lv_anim_set_values(&glow_anim, 200, 255);
-    lv_anim_set_time(&glow_anim, 1200);
-    lv_anim_set_playback_time(&glow_anim, 1200);
-    lv_anim_set_repeat_count(&glow_anim, LV_ANIM_REPEAT_INFINITE);
-    lv_anim_start(&glow_anim);
 }
 
 /**
@@ -171,29 +138,11 @@ lv_obj_t* create_avatar_screen(void)
     lv_obj_set_style_bg_opa(s_avatar_screen, LV_OPA_COVER, LV_PART_MAIN);
     lv_obj_add_event_cb(s_avatar_screen, avatar_click_cb, LV_EVENT_CLICKED, NULL);
 
-    /* ========== GIF直接挂在screen顶层，居中偏上 ========== */
-    /* 先验证文件能否打开 */
-    FILE *f = fopen("/spiffs/xiaoyouzi.gif", "rb");
-    if (f) {
-        fseek(f, 0, SEEK_END);
-        long sz = ftell(f);
-        fclose(f);
-        ESP_LOGI(TAG, "GIF file OK, size=%ld bytes", sz);
-    } else {
-        ESP_LOGE(TAG, "GIF file NOT FOUND at /spiffs/xiaoyouzi.gif !");
-    }
-
-    ESP_LOGI(TAG, "Free heap: %d, Free PSRAM: %d",
-             heap_caps_get_free_size(MALLOC_CAP_INTERNAL),
-             heap_caps_get_free_size(MALLOC_CAP_SPIRAM));
-
+    /* ========== 加载220x220 GIF ========== */
     s_avatar_gif = lv_gif_create(s_avatar_screen);
-    lv_gif_set_src(s_avatar_gif, "S:/spiffs/xiaoyouzi.gif");
-    /* 不强制set_size，让GIF按原始帧尺寸自适应；GIF文件本身应为220×220 */
+    lv_gif_set_src(s_avatar_gif, AVATAR_GIF_SRC);
     lv_obj_align(s_avatar_gif, LV_ALIGN_CENTER, 0, -30);
     lv_obj_clear_flag(s_avatar_gif, LV_OBJ_FLAG_SCROLLABLE);
-    ESP_LOGI(TAG, "GIF object created, w=%d h=%d",
-             lv_obj_get_width(s_avatar_gif), lv_obj_get_height(s_avatar_gif));
 
     /* s_avatar_circle 和 s_avatar_container 复用为同一对象，仅用于浮动动画 */
     s_avatar_circle    = s_avatar_gif;
@@ -209,19 +158,19 @@ lv_obj_t* create_avatar_screen(void)
     lv_obj_align_to(s_greeting_label, s_avatar_gif, LV_ALIGN_OUT_BOTTOM_MID, 0, 35);
 
     /* ========== 底部提示 ========== */
-    s_hint_label = lv_label_create(s_avatar_screen);
-    lv_label_set_text(s_hint_label, "点击屏幕继续");
-    lv_obj_align(s_hint_label, LV_ALIGN_BOTTOM_MID, 0, -40);
-    lv_obj_set_style_text_font(s_hint_label, THEME_FONT_CN, LV_PART_MAIN);
-    lv_obj_set_style_text_color(s_hint_label, lv_color_hex(0xB8A898), LV_PART_MAIN);
+    // s_hint_label = lv_label_create(s_avatar_screen);
+    // lv_label_set_text(s_hint_label, "点击屏幕继续");
+    // lv_obj_align(s_hint_label, LV_ALIGN_BOTTOM_MID, 0, -40);
+    // lv_obj_set_style_text_font(s_hint_label, THEME_FONT_CN, LV_PART_MAIN);
+    // lv_obj_set_style_text_color(s_hint_label, lv_color_hex(0xB8A898), LV_PART_MAIN);
 
-    /* ========== 启动动画 ========== */
     start_avatar_animations();
 
     /* ========== 设置自动跳转定时器 ========== */
     s_auto_transition_timer = lv_timer_create(auto_transition_timer_cb, AUTO_TRANSITION_MS, NULL);
     lv_timer_set_repeat_count(s_auto_transition_timer, 1);
 
+    g_avatar_screen_active = true;
     ESP_LOGI(TAG, "Avatar screen created successfully");
     return s_avatar_screen;
 }
@@ -238,6 +187,7 @@ void delete_avatar_screen(void)
 
     if (s_avatar_screen) {
         lv_obj_del(s_avatar_screen);
+        g_avatar_screen_active = false;
         s_avatar_screen = NULL;
         s_avatar_container = NULL;
         s_avatar_circle = NULL;
@@ -254,10 +204,6 @@ void delete_avatar_screen(void)
  */
 void stop_avatar_animations(void)
 {
-    /* 停止浮动动画 */
-    lv_anim_del(s_avatar_gif, float_anim_cb);
-    lv_anim_del(s_avatar_gif, glow_anim_cb);
-
     /* 停止自动跳转定时器 */
     if (s_auto_transition_timer) {
         lv_timer_del(s_auto_transition_timer);
@@ -275,7 +221,6 @@ void stop_avatar_animations(void)
 void restart_avatar_animations(void)
 {
     stop_avatar_animations();
-    start_avatar_animations();
 
     /* 重新设置自动跳转定时器 */
     s_auto_transition_timer = lv_timer_create(auto_transition_timer_cb, AUTO_TRANSITION_MS, NULL);
